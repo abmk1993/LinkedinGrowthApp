@@ -34,7 +34,26 @@ Run the schema against your Supabase project (SQL editor, or `supabase db push` 
 supabase/schema.sql
 ```
 
-Create a **private** Storage bucket named `profile-photos` (dashboard: Storage → New bucket → uncheck "Public"). The photo onboarding step will fail clearly at upload if this is missing — it won't silently break.
+Create two **private** Storage buckets (dashboard: Storage → New bucket → uncheck "Public"):
+- `profile-photos` — the photo onboarding step will fail clearly at upload if this is missing, it won't silently break.
+- `profile-screenshots` — used by the profile-audit step's screenshot-upload mode (the paste-text mode doesn't need it).
+
+Both need RLS policies on `storage.objects` scoping each user to their own `{user_id}/...` folder. `storage.objects` is one shared table across every bucket, so policy names must be unique — run this once, covering both buckets:
+```sql
+create policy "profile_media_insert_own" on storage.objects
+for insert to authenticated
+with check (
+  bucket_id in ('profile-photos', 'profile-screenshots')
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+create policy "profile_media_select_own" on storage.objects
+for select to authenticated
+using (
+  bucket_id in ('profile-photos', 'profile-screenshots')
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+```
 
 ```bash
 npm run dev          # http://localhost:3000

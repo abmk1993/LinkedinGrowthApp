@@ -20,13 +20,13 @@ export class ClaudeProvider implements AIProvider {
 
   async generate(prompt: string, options: GenerateOptions = {}): Promise<string> {
     const content: Array<Record<string, unknown>> = [];
-    if (options.image) {
+    for (const image of options.images ?? []) {
       content.push({
         type: "image",
         source: {
           type: "base64",
-          media_type: options.image.mediaType,
-          data: options.image.base64,
+          media_type: image.mediaType,
+          data: image.base64,
         },
       });
     }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MockAIProvider } from "@/lib/ai/mockProvider";
 import { generatePositioning } from "@/lib/ai/agents/positioningAgent";
 import { generatePost } from "@/lib/ai/agents/contentAgent";
-import { auditProfile } from "@/lib/ai/agents/profileAuditAgent";
+import { auditProfileFromImages, auditProfileFromText } from "@/lib/ai/agents/profileAuditAgent";
 
 describe("positioningAgent contract", () => {
   it("returns 3-5 pillars, a target audience, and a content style", async () => {
@@ -110,7 +110,109 @@ describe("contentAgent contract", () => {
 });
 
 describe("profileAuditAgent contract", () => {
-  it("never returns a section that was not provided as input", async () => {
+  const SCREENSHOT = { base64: "ZmFrZQ==", mediaType: "image/png" as const };
+
+  it("rejects when no screenshots are provided", async () => {
+    const provider = new MockAIProvider();
+
+    await expect(
+      auditProfileFromImages(provider, {
+        profession: "QA Engineer",
+        industry: "IT",
+        skills: ["Playwright"],
+        careerGoal: "Grow visibility",
+        images: [],
+      })
+    ).rejects.toThrow(/at least one screenshot/);
+  });
+
+  it("returns only the sections visible in the screenshots, each with its transcribed text", async () => {
+    const provider = new MockAIProvider();
+    provider.stub(
+      "screenshot(s) of this person's LinkedIn profile page",
+      JSON.stringify({
+        sections: [
+          {
+            section: "headline",
+            original_text: "QA guy",
+            score: 60,
+            critique: "Too generic.",
+            suggested_rewrite: "QA Automation Lead | Playwright & AI Testing",
+          },
+        ],
+      })
+    );
+
+    const result = await auditProfileFromImages(provider, {
+      profession: "QA Engineer",
+      industry: "IT",
+      skills: ["Playwright"],
+      careerGoal: "Grow visibility",
+      images: [SCREENSHOT],
+    });
+
+    expect(result.sections).toHaveLength(1);
+    expect(result.sections[0]?.section).toBe("headline");
+    expect(result.sections[0]?.original_text).toBe("QA guy");
+  });
+
+  it("rejects a section missing its transcribed original_text", async () => {
+    const provider = new MockAIProvider();
+    provider.stub(
+      "screenshot(s) of this person's LinkedIn profile page",
+      JSON.stringify({
+        sections: [
+          {
+            section: "headline",
+            original_text: "",
+            score: 60,
+            critique: "Too generic.",
+            suggested_rewrite: "QA Automation Lead | Playwright & AI Testing",
+          },
+        ],
+      })
+    );
+
+    await expect(
+      auditProfileFromImages(provider, {
+        profession: "QA Engineer",
+        industry: "IT",
+        skills: ["Playwright"],
+        careerGoal: "Grow visibility",
+        images: [SCREENSHOT],
+      })
+    ).rejects.toThrow();
+  });
+
+  it("passes every provided screenshot through to the provider as images", async () => {
+    const provider = new MockAIProvider();
+    provider.stub(
+      "screenshot(s) of this person's LinkedIn profile page",
+      JSON.stringify({
+        sections: [
+          {
+            section: "headline",
+            original_text: "QA guy",
+            score: 60,
+            critique: "Too generic.",
+            suggested_rewrite: "QA Automation Lead | Playwright & AI Testing",
+          },
+        ],
+      })
+    );
+
+    await auditProfileFromImages(provider, {
+      profession: "QA Engineer",
+      industry: "IT",
+      skills: ["Playwright"],
+      careerGoal: "Grow visibility",
+      images: [SCREENSHOT, SCREENSHOT],
+    });
+
+    expect(provider.calls[0]?.options?.images).toHaveLength(2);
+  });
+
+  it("never returns a section that was not provided as pasted text", async () => {
     const provider = new MockAIProvider();
     // Agent incorrectly returns "about" even though only headline was sent —
     // this must be rejected by the contract guard, not just the schema.
@@ -135,7 +237,7 @@ describe("profileAuditAgent contract", () => {
     );
 
     await expect(
-      auditProfile(provider, {
+      auditProfileFromText(provider, {
         profession: "QA Engineer",
         industry: "IT",
         skills: ["Playwright"],
@@ -145,7 +247,7 @@ describe("profileAuditAgent contract", () => {
     ).rejects.toThrow(/not provided as input/);
   });
 
-  it("accepts a response scoped to exactly the sections provided", async () => {
+  it("accepts a pasted-text response scoped to exactly the sections provided", async () => {
     const provider = new MockAIProvider();
     provider.stub(
       "HEADLINE:",
@@ -161,7 +263,7 @@ describe("profileAuditAgent contract", () => {
       })
     );
 
-    const result = await auditProfile(provider, {
+    const result = await auditProfileFromText(provider, {
       profession: "QA Engineer",
       industry: "IT",
       skills: ["Playwright"],

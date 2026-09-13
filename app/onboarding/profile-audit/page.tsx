@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClassName } from "@/components/ui/Field";
@@ -20,8 +20,15 @@ const SECTION_LABELS: Record<AuditItem["section"], string> = {
   experience: "Experience",
 };
 
+const MAX_SCREENSHOTS = 6;
+
 export default function ProfileAuditPage() {
   const router = useRouter();
+
+  const [mode, setMode] = useState<"screenshot" | "text">("screenshot");
+
+  const [files, setFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
   const [headline, setHeadline] = useState("");
   const [about, setAbout] = useState("");
@@ -33,24 +40,52 @@ export default function ProfileAuditPage() {
   const [editedText, setEditedText] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  async function handleAnalyze(e: FormEvent) {
-    e.preventDefault();
+  // Revokes the current preview URLs whenever they're replaced, and
+  // also on unmount (e.g. analysis succeeds and this form is replaced
+  // by the review list, or the user navigates away) — a cleanup tied to
+  // this effect's own dependency always sees the latest previewUrls,
+  // unlike one written directly in handleFilesChange would after the
+  // next replacement.
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
+
+  function handleFilesChange(e: ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(e.target.files ?? []);
+    if (selected.length === 0) return;
+
+    setAnalyzeError(null);
+    setFiles(selected.slice(0, MAX_SCREENSHOTS));
+    setPreviewUrls(selected.slice(0, MAX_SCREENSHOTS).map((f) => URL.createObjectURL(f)));
+  }
+
+  async function handleAnalyze() {
     setAnalyzeError(null);
 
-    if (!headline && !about && !experience) {
+    if (mode === "screenshot" && files.length === 0) {
+      setAnalyzeError("Upload at least one screenshot to get a critique.");
+      return;
+    }
+    if (mode === "text" && !headline && !about && !experience) {
       setAnalyzeError("Paste at least one section to get a critique.");
       return;
     }
 
     setIsAnalyzing(true);
+    const formData = new FormData();
+    if (mode === "screenshot") {
+      files.forEach((file) => formData.append("screenshots", file));
+    } else {
+      if (headline) formData.append("headline", headline);
+      if (about) formData.append("about", about);
+      if (experience) formData.append("experience", experience);
+    }
+
     const res = await fetch("/api/profile-audit/analyze", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        headline: headline || undefined,
-        about: about || undefined,
-        experience: experience || undefined,
-      }),
+      body: formData,
     });
     setIsAnalyzing(false);
 
@@ -97,62 +132,141 @@ export default function ProfileAuditPage() {
         Review your current profile
       </h1>
 
-      <div className="mt-6 rounded-card border border-ink-100 bg-paper-raised p-5">
-        <p className="text-sm font-medium text-ink-900">Where to find each section</p>
-        <ul className="mt-2 space-y-1 text-sm text-ink-700">
-          <li>
-            <strong>Headline</strong> — the line under your name at the top of your
-            profile.
-          </li>
-          <li>
-            <strong>About</strong> — the summary section below your banner photo.
-          </li>
-          <li>
-            <strong>Experience</strong> — the description text under any one role.
-          </li>
-        </ul>
-        <p className="mt-2 text-sm text-ink-500">
-          Open your LinkedIn profile in another tab, copy what you have, and paste it
-          below. Any section can be left blank.
-        </p>
-      </div>
+      {items.length === 0 && (
+        <div className="mt-6 flex gap-2 rounded-card border border-ink-100 p-1">
+          <button
+            type="button"
+            onClick={() => setMode("screenshot")}
+            className={`flex-1 rounded-card px-4 py-2 text-sm font-medium transition-colors ${
+              mode === "screenshot" ? "bg-brass-100 text-ink-900" : "text-ink-500 hover:text-ink-900"
+            }`}
+          >
+            Upload screenshots
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("text")}
+            className={`flex-1 rounded-card px-4 py-2 text-sm font-medium transition-colors ${
+              mode === "text" ? "bg-brass-100 text-ink-900" : "text-ink-500 hover:text-ink-900"
+            }`}
+          >
+            Paste text instead
+          </button>
+        </div>
+      )}
+
+      {items.length === 0 && mode === "screenshot" && (
+        <div className="mt-6 rounded-card border border-ink-100 bg-paper-raised p-5">
+          <p className="text-sm font-medium text-ink-900">Why screenshots?</p>
+          <p className="mt-2 text-sm text-ink-700">
+            We don&apos;t ask for your profile URL because automatically fetching
+            (&quot;scraping&quot;) a LinkedIn page violates LinkedIn&apos;s Terms of Service and
+            risks your account. A screenshot is just an image you choose to share —
+            no scraping, no connecting your account, works the same whether your
+            profile is public or connections-only.
+          </p>
+
+          <p className="mt-4 text-sm font-medium text-ink-900">What to capture</p>
+          <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-ink-700">
+            <li>
+              Open your own profile at linkedin.com/in/your-name in another tab.
+            </li>
+            <li>
+              <strong>Headline</strong> — screenshot the area right under your
+              name and photo (your title/tagline and current company).
+            </li>
+            <li>
+              <strong>About</strong> — scroll to the &quot;About&quot; section below your
+              banner and screenshot the whole paragraph (click &quot;see more&quot; first
+              if it&apos;s truncated).
+            </li>
+            <li>
+              <strong>Experience</strong> — scroll to one role under
+              &quot;Experience&quot; and screenshot its description/bullet points.
+            </li>
+          </ol>
+          <p className="mt-2 text-sm text-ink-500">
+            Any section you don&apos;t capture is simply skipped — one screenshot per
+            section is usually enough since they rarely fit on screen together.
+          </p>
+        </div>
+      )}
 
       {items.length === 0 ? (
-        <form onSubmit={handleAnalyze} className="mt-8 space-y-6">
-          <Field label="Headline" htmlFor="headline">
-            <textarea
-              id="headline"
-              rows={2}
-              value={headline}
-              onChange={(e) => setHeadline(e.target.value)}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="About" htmlFor="about">
-            <textarea
-              id="about"
-              rows={6}
-              value={about}
-              onChange={(e) => setAbout(e.target.value)}
-              className={inputClassName}
-            />
-          </Field>
-          <Field label="Experience" htmlFor="experience" hint="One or two role descriptions is enough">
-            <textarea
-              id="experience"
-              rows={5}
-              value={experience}
-              onChange={(e) => setExperience(e.target.value)}
-              className={inputClassName}
-            />
-          </Field>
+        mode === "screenshot" ? (
+          <div className="mt-8 space-y-6">
+            <div>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={handleFilesChange}
+                className="block text-sm text-ink-700 file:mr-4 file:rounded-card file:border-0 file:bg-brass-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink-900"
+              />
+              <p className="mt-1 text-xs text-ink-500">Up to {MAX_SCREENSHOTS} screenshots</p>
+            </div>
 
-          {analyzeError && <p className="text-sm text-signal-bad">{analyzeError}</p>}
+            {previewUrls.length > 0 && (
+              <div className="flex flex-wrap gap-3">
+                {previewUrls.map((url, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element -- local object URL preview, not a remote asset
+                  <img
+                    key={url}
+                    src={url}
+                    alt={`Screenshot ${i + 1} preview`}
+                    className="h-32 w-auto rounded-card border border-ink-100 object-cover"
+                  />
+                ))}
+              </div>
+            )}
 
-          <Button type="submit" isLoading={isAnalyzing}>
-            Analyze my profile
-          </Button>
-        </form>
+            {analyzeError && <p className="text-sm text-signal-bad">{analyzeError}</p>}
+
+            <Button type="button" isLoading={isAnalyzing} onClick={handleAnalyze}>
+              Analyze my profile
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-8 space-y-6">
+            <Field label="Headline" htmlFor="headline">
+              <textarea
+                id="headline"
+                rows={2}
+                value={headline}
+                onChange={(e) => setHeadline(e.target.value)}
+                className={inputClassName}
+              />
+            </Field>
+            <Field label="About" htmlFor="about">
+              <textarea
+                id="about"
+                rows={6}
+                value={about}
+                onChange={(e) => setAbout(e.target.value)}
+                className={inputClassName}
+              />
+            </Field>
+            <Field
+              label="Experience"
+              htmlFor="experience"
+              hint="One or two role descriptions is enough"
+            >
+              <textarea
+                id="experience"
+                rows={5}
+                value={experience}
+                onChange={(e) => setExperience(e.target.value)}
+                className={inputClassName}
+              />
+            </Field>
+
+            {analyzeError && <p className="text-sm text-signal-bad">{analyzeError}</p>}
+
+            <Button type="button" isLoading={isAnalyzing} onClick={handleAnalyze}>
+              Analyze my profile
+            </Button>
+          </div>
+        )
       ) : (
         <div className="mt-8 space-y-6">
           {items.map((item) => (

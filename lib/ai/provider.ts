@@ -17,14 +17,16 @@ export interface GenerateOptions {
   /** Sampling temperature. Lower is more deterministic. Defaults to provider's own default. */
   temperature?: number;
   /**
-   * Optional image to include alongside the text prompt, for
-   * vision-capable calls (currently only the Photo Audit Agent uses
-   * this). Base64-encoded, no data URL prefix.
+   * Optional images to include alongside the text prompt, for
+   * vision-capable calls (Photo Audit and Profile Audit agents).
+   * Base64-encoded, no data URL prefix. Order is preserved in the
+   * request, for prompts that reference "the attached screenshots"
+   * collectively rather than individually.
    */
-  image?: {
+  images?: Array<{
     base64: string;
     mediaType: "image/jpeg" | "image/png" | "image/webp";
-  };
+  }>;
 }
 
 export interface AIProvider {

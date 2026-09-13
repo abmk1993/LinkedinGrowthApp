@@ -10,7 +10,7 @@ export const UpsertProfileRequestSchema = z.object({
 });
 export type UpsertProfileRequest = z.infer<typeof UpsertProfileRequestSchema>;
 
-export const ProfileAuditRequestSchema = z
+export const ProfileAuditTextRequestSchema = z
   .object({
     headline: z.string().max(2000).optional(),
     about: z.string().max(5000).optional(),
@@ -19,7 +19,7 @@ export const ProfileAuditRequestSchema = z
   .refine((data) => data.headline || data.about || data.experience, {
     message: "At least one of headline, about, or experience must be provided",
   });
-export type ProfileAuditRequest = z.infer<typeof ProfileAuditRequestSchema>;
+export type ProfileAuditTextRequest = z.infer<typeof ProfileAuditTextRequestSchema>;
 
 export const GrowthPlanRequestSchema = z.object({
   cadence: z.enum(["daily", "few_times_week", "weekly"]),

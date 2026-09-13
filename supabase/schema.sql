@@ -27,13 +27,17 @@ create table if not exists interests (
   name text not null
 );
 
--- Raw pasted profile text, one row per audit run
+-- One row per audit run. headline_raw/about_raw/experience_raw are
+-- transcribed by the AI from the uploaded screenshot(s), not pasted by
+-- the user — screenshot_urls points at those screenshots in Storage
+-- (bucket: profile-screenshots).
 create table if not exists profile_snapshots (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid not null references profiles(id) on delete cascade,
   headline_raw text,
   about_raw text,
   experience_raw text,
+  screenshot_urls jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 

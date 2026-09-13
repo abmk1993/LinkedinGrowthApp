@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   UpsertProfileRequestSchema,
-  ProfileAuditRequestSchema,
+  ProfileAuditTextRequestSchema,
   GrowthPlanRequestSchema,
 } from "@/lib/validation/requests";
 import { QA_PROFILE } from "../fixtures/profiles";
@@ -36,14 +36,14 @@ describe("UpsertProfileRequestSchema", () => {
   });
 });
 
-describe("ProfileAuditRequestSchema", () => {
+describe("ProfileAuditTextRequestSchema", () => {
   it("accepts a payload with only a headline", () => {
-    const result = ProfileAuditRequestSchema.safeParse({ headline: "QA lead" });
+    const result = ProfileAuditTextRequestSchema.safeParse({ headline: "QA lead" });
     expect(result.success).toBe(true);
   });
 
   it("rejects a payload with no sections at all", () => {
-    const result = ProfileAuditRequestSchema.safeParse({});
+    const result = ProfileAuditTextRequestSchema.safeParse({});
     expect(result.success).toBe(false);
   });
 });

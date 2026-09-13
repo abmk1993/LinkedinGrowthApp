@@ -39,11 +39,12 @@ export default function LandingPage() {
               Profile makeover
             </h2>
             <p className="mt-3 max-w-prose text-ink-700">
-              Paste your current headline, About section, and a couple of
-              experience bullets. You&apos;ll get a specific critique and a rewrite
-              for each — not &quot;add more keywords,&quot; but the actual sentence swapped
-              in. Upload your profile photo too; if it needs work, you&apos;ll get a
-              corrected version to download.
+              Screenshot your current headline, About section, and a role
+              description — no scraping, no connecting your account. You&apos;ll get
+              a specific critique and a rewrite for each — not &quot;add more
+              keywords,&quot; but the actual sentence swapped in. Upload your profile
+              photo too; if it needs work, you&apos;ll get a corrected version to
+              download.
             </p>
           </div>
           <div>

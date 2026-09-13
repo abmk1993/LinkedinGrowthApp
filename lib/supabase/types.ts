@@ -64,6 +64,7 @@ export interface Database {
           headline_raw: string | null;
           about_raw: string | null;
           experience_raw: string | null;
+          screenshot_urls: string[];
           created_at: string;
         };
         Insert: {
@@ -72,6 +73,7 @@ export interface Database {
           headline_raw?: string | null;
           about_raw?: string | null;
           experience_raw?: string | null;
+          screenshot_urls?: string[];
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profile_snapshots"]["Insert"]>;

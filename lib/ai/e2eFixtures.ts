@@ -18,11 +18,12 @@ export function seedE2EStubs(provider: MockAIProvider): void {
   );
 
   provider.stub(
-    "HEADLINE:",
+    "screenshot(s) of this person's LinkedIn profile page",
     JSON.stringify({
       sections: [
         {
           section: "headline",
+          original_text: "QA Automation Engineer at Sportsbook Co",
           score: 55,
           critique:
             "Reads as a job title only — doesn't signal your Playwright/AI-testing focus or invite engagement.",

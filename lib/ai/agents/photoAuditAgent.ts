@@ -38,7 +38,7 @@ export async function auditPhoto(
     system: SYSTEM_PROMPT,
     maxTokens: 500,
     temperature: 0.2,
-    image,
+    images: [image],
   });
 
   return parseAIJson(raw, PhotoAuditSchema);
