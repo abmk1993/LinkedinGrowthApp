@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClassName } from "@/components/ui/Field";
@@ -8,7 +9,7 @@ import { Field, inputClassName } from "@/components/ui/Field";
 interface AuditItem {
   id: string;
   section: "headline" | "about" | "experience";
-  score: number;
+  score: number | null;
   critique: string;
   suggested_rewrite: string;
   status: "pending" | "accepted" | "edited" | "rejected";
@@ -36,30 +37,64 @@ export default function ProfileAuditPage() {
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [items, setItems] = useState<AuditItem[]>([]);
   const [editedText, setEditedText] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [reopenedIds, setReopenedIds] = useState<Set<string>>(new Set());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Revokes the current preview URLs whenever they're replaced, and
-  // also on unmount (e.g. analysis succeeds and this form is replaced
-  // by the review list, or the user navigates away) — a cleanup tied to
-  // this effect's own dependency always sees the latest previewUrls,
-  // unlike one written directly in handleFilesChange would after the
-  // next replacement.
+  const [isGeneratingAbout, setIsGeneratingAbout] = useState(false);
+  const [generateAboutError, setGenerateAboutError] = useState<string | null>(null);
+
+  // Derives preview URLs from `files` and revokes them whenever `files`
+  // changes or this form unmounts (e.g. analysis succeeds and this form
+  // is replaced by the review list) — object URLs always match what's
+  // actually in `files`, whether it came from the file picker or a paste.
   useEffect(() => {
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviewUrls(urls);
     return () => {
-      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+      urls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [previewUrls]);
+  }, [files]);
+
+  function addFiles(newFiles: File[]) {
+    if (newFiles.length === 0) return;
+    setAnalyzeError(null);
+    setFiles((prev) => [...prev, ...newFiles].slice(0, MAX_SCREENSHOTS));
+  }
 
   function handleFilesChange(e: ChangeEvent<HTMLInputElement>) {
-    const selected = Array.from(e.target.files ?? []);
-    if (selected.length === 0) return;
-
-    setAnalyzeError(null);
-    setFiles(selected.slice(0, MAX_SCREENSHOTS));
-    setPreviewUrls(selected.slice(0, MAX_SCREENSHOTS).map((f) => URL.createObjectURL(f)));
+    addFiles(Array.from(e.target.files ?? []));
+    e.target.value = "";
   }
+
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  // Lets users paste a copied screenshot directly (Ctrl/Cmd+V) instead of
+  // saving it to disk first and uploading it — the file-picker upload
+  // stays available alongside this, addFiles() just merges either source.
+  useEffect(() => {
+    if (mode !== "screenshot" || hasAnalyzed) return;
+
+    function handlePaste(e: ClipboardEvent) {
+      const pastedImages = Array.from(e.clipboardData?.items ?? [])
+        .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter((f): f is File => f !== null);
+
+      if (pastedImages.length > 0) {
+        e.preventDefault();
+        addFiles(pastedImages);
+      }
+    }
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [mode, hasAnalyzed]);
 
   async function handleAnalyze() {
     setAnalyzeError(null);
@@ -96,7 +131,11 @@ export default function ProfileAuditPage() {
     }
 
     const body = await res.json();
-    setItems(body.items as AuditItem[]);
+    // Append rather than replace — an AI-drafted About item (from the
+    // "Generate About for me" shortcut) may already be sitting in `items`,
+    // and this shouldn't discard it.
+    setItems((prev) => [...prev, ...(body.items as AuditItem[])]);
+    setHasAnalyzed(true);
   }
 
   async function saveDecision(
@@ -120,19 +159,62 @@ export default function ProfileAuditPage() {
       setItems((prev) =>
         prev.map((i) => (i.id === item.id ? { ...i, status } : i))
       );
+      setReopenedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
     }
   }
 
-  const allDecided = items.length > 0 && items.every((i) => i.status !== "pending");
+  function reopenItem(id: string) {
+    setReopenedIds((prev) => new Set(prev).add(id));
+  }
+
+  async function handleCopyItem(item: AuditItem) {
+    const finalText = editedText[item.id] ?? item.suggested_rewrite;
+    await navigator.clipboard.writeText(finalText);
+    setCopiedId(item.id);
+    setTimeout(() => setCopiedId((current) => (current === item.id ? null : current)), 2000);
+  }
+
+  async function handleGenerateAbout() {
+    setGenerateAboutError(null);
+    setIsGeneratingAbout(true);
+
+    const res = await fetch("/api/profile-audit/generate-about", { method: "POST" });
+    setIsGeneratingAbout(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: "Something went wrong." }));
+      setGenerateAboutError(
+        body.error ?? "Something went wrong generating your About section."
+      );
+      return;
+    }
+
+    const item = await res.json();
+    setItems((prev) => [...prev, item as AuditItem]);
+  }
+
+  const hasAboutItem = items.some((i) => i.section === "about");
+
+  const allDecided =
+    items.length > 0 &&
+    reopenedIds.size === 0 &&
+    items.every((i) => i.status !== "pending");
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <p className="text-sm font-medium text-brass-600">Phase 1 · Step 2 of 5</p>
+      <Link href="/onboarding/profile" className="text-sm font-medium text-ink-500 hover:text-ink-900">
+        ← Back
+      </Link>
+      <p className="mt-4 text-sm font-medium text-brass-600">Phase 1 · Step 2 of 5</p>
       <h1 className="mt-2 font-display text-3xl text-ink-900">
         Review your current profile
       </h1>
 
-      {items.length === 0 && (
+      {!hasAnalyzed && (
         <div className="mt-6 flex gap-2 rounded-card border border-ink-100 p-1">
           <button
             type="button"
@@ -155,7 +237,33 @@ export default function ProfileAuditPage() {
         </div>
       )}
 
-      {items.length === 0 && mode === "screenshot" && (
+      {!hasAboutItem && (
+        <div className="mt-6 flex items-center justify-between gap-4 rounded-card border border-ink-100 bg-paper-raised p-4">
+          <div>
+            <p className="text-sm font-medium text-ink-900">
+              {hasAnalyzed
+                ? "No About section in what you provided?"
+                : "Don't have an About section yet?"}
+            </p>
+            <p className="mt-1 text-sm text-ink-700">
+              Skip pasting or screenshotting — let AI draft one from your profile info.
+            </p>
+            {generateAboutError && (
+              <p className="mt-2 text-sm text-signal-bad">{generateAboutError}</p>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            isLoading={isGeneratingAbout}
+            onClick={handleGenerateAbout}
+          >
+            Generate About for me
+          </Button>
+        </div>
+      )}
+
+      {!hasAnalyzed && mode === "screenshot" && (
         <div className="mt-6 rounded-card border border-ink-100 bg-paper-raised p-5">
           <p className="text-sm font-medium text-ink-900">Why screenshots?</p>
           <p className="mt-2 text-sm text-ink-700">
@@ -192,8 +300,8 @@ export default function ProfileAuditPage() {
         </div>
       )}
 
-      {items.length === 0 ? (
-        mode === "screenshot" ? (
+      {!hasAnalyzed &&
+        (mode === "screenshot" ? (
           <div className="mt-8 space-y-6">
             <div>
               <input
@@ -203,19 +311,31 @@ export default function ProfileAuditPage() {
                 onChange={handleFilesChange}
                 className="block text-sm text-ink-700 file:mr-4 file:rounded-card file:border-0 file:bg-brass-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink-900"
               />
-              <p className="mt-1 text-xs text-ink-500">Up to {MAX_SCREENSHOTS} screenshots</p>
+              <p className="mt-1 text-xs text-ink-500">
+                Up to {MAX_SCREENSHOTS} screenshots — or just copy a screenshot and paste it
+                here (Ctrl/Cmd+V), no need to save it first
+              </p>
             </div>
 
             {previewUrls.length > 0 && (
               <div className="flex flex-wrap gap-3">
                 {previewUrls.map((url, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element -- local object URL preview, not a remote asset
-                  <img
-                    key={url}
-                    src={url}
-                    alt={`Screenshot ${i + 1} preview`}
-                    className="h-32 w-auto rounded-card border border-ink-100 object-cover"
-                  />
+                  <div key={url} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview, not a remote asset */}
+                    <img
+                      src={url}
+                      alt={`Screenshot ${i + 1} preview`}
+                      className="h-32 w-auto rounded-card border border-ink-100 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      aria-label={`Remove screenshot ${i + 1}`}
+                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-ink-900 text-xs font-medium text-white shadow-sm hover:bg-ink-700"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -266,66 +386,93 @@ export default function ProfileAuditPage() {
               Analyze my profile
             </Button>
           </div>
-        )
-      ) : (
+        ))}
+
+      {items.length > 0 && (
         <div className="mt-8 space-y-6">
-          {items.map((item) => (
-            <div key={item.id} className="rounded-card border border-ink-100 p-5">
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-lg text-ink-900">
-                  {SECTION_LABELS[item.section]}
-                </h2>
-                <span className="text-sm text-ink-500">Score: {item.score}/100</span>
-              </div>
-              <p className="mt-2 text-sm text-ink-700">{item.critique}</p>
-
-              <div className="mt-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-ink-500">
-                  Suggested rewrite
-                </p>
-                <textarea
-                  rows={item.section === "about" ? 6 : 2}
-                  defaultValue={item.suggested_rewrite}
-                  onChange={(e) =>
-                    setEditedText((prev) => ({ ...prev, [item.id]: e.target.value }))
-                  }
-                  disabled={item.status !== "pending"}
-                  className={`${inputClassName} mt-1 disabled:bg-ink-100 disabled:text-ink-500`}
-                />
-              </div>
-
-              {item.status === "pending" ? (
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    type="button"
-                    isLoading={savingId === item.id}
-                    onClick={() =>
-                      saveDecision(
-                        item,
-                        editedText[item.id] && editedText[item.id] !== item.suggested_rewrite
-                          ? "edited"
-                          : "accepted"
-                      )
-                    }
-                  >
-                    Accept
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    isLoading={savingId === item.id}
-                    onClick={() => saveDecision(item, "rejected")}
-                  >
-                    Reject
-                  </Button>
+          {!hasAnalyzed && (
+            <p className="text-sm font-medium text-ink-900">Drafted so far</p>
+          )}
+          {items.map((item) => {
+            const isEditable = item.status === "pending" || reopenedIds.has(item.id);
+            return (
+              <div key={item.id} className="rounded-card border border-ink-100 p-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-lg text-ink-900">
+                    {SECTION_LABELS[item.section]}
+                  </h2>
+                  <span className="text-sm text-ink-500">
+                    {item.score != null ? `Score: ${item.score}/100` : "AI-drafted"}
+                  </span>
                 </div>
-              ) : (
-                <p className="mt-3 text-sm font-medium text-signal-good">
-                  {item.status === "rejected" ? "Rejected — kept as-is" : "Saved"}
-                </p>
-              )}
-            </div>
-          ))}
+                <p className="mt-2 text-sm text-ink-700">{item.critique}</p>
+
+                <div className="mt-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-ink-500">
+                    Suggested rewrite
+                  </p>
+                  <textarea
+                    rows={item.section === "about" ? 18 : 6}
+                    defaultValue={item.suggested_rewrite}
+                    onChange={(e) =>
+                      setEditedText((prev) => ({ ...prev, [item.id]: e.target.value }))
+                    }
+                    disabled={!isEditable}
+                    className={`${inputClassName} mt-1 resize-y disabled:bg-ink-100 disabled:text-ink-500`}
+                  />
+                </div>
+
+                {isEditable ? (
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      type="button"
+                      isLoading={savingId === item.id}
+                      onClick={() =>
+                        saveDecision(
+                          item,
+                          editedText[item.id] && editedText[item.id] !== item.suggested_rewrite
+                            ? "edited"
+                            : "accepted"
+                        )
+                      }
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      isLoading={savingId === item.id}
+                      onClick={() => saveDecision(item, "rejected")}
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex items-center gap-3">
+                    <p className="text-sm font-medium text-signal-good">
+                      {item.status === "rejected" ? "Rejected — kept as-is" : "Saved"}
+                    </p>
+                    {item.status !== "rejected" && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyItem(item)}
+                        className="text-sm font-medium text-brass-600 hover:underline"
+                      >
+                        {copiedId === item.id ? "Copied" : "Copy"}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => reopenItem(item.id)}
+                      className="text-sm font-medium text-brass-600 hover:underline"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           <Button
             type="button"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClassName } from "@/components/ui/Field";
@@ -91,7 +92,10 @@ export default function PositioningPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <p className="text-sm font-medium text-brass-600">Phase 1 · Step 4 of 5</p>
+      <Link href="/onboarding/photo" className="text-sm font-medium text-ink-500 hover:text-ink-900">
+        ← Back
+      </Link>
+      <p className="mt-4 text-sm font-medium text-brass-600">Phase 1 · Step 4 of 5</p>
       <h1 className="mt-2 font-display text-3xl text-ink-900">Your content pillars</h1>
       <p className="mt-2 max-w-prose text-ink-700">
         A few themes to anchor what you post about — specific enough to guide the
@@ -110,20 +114,30 @@ export default function PositioningPage() {
             <TagInput value={pillars} onChange={setPillars} maxTags={5} />
           </Field>
 
-          <Field label="Content style" htmlFor="contentStyle">
+          <Field
+            label="Content style"
+            htmlFor="contentStyle"
+            hint='How your posts should sound — e.g. "practical, first-person, example-driven"'
+          >
             <input
               id="contentStyle"
               value={contentStyle}
               onChange={(e) => setContentStyle(e.target.value)}
+              placeholder="practical, first-person, example-driven"
               className={inputClassName}
             />
           </Field>
 
-          <Field label="Target audience" htmlFor="targetAudience">
+          <Field
+            label="Target audience"
+            htmlFor="targetAudience"
+            hint='Who you want reading these posts — e.g. "Mid-level QA engineers exploring AI-assisted testing"'
+          >
             <input
               id="targetAudience"
               value={targetAudience}
               onChange={(e) => setTargetAudience(e.target.value)}
+              placeholder="Mid-level QA engineers exploring AI-assisted testing"
               className={inputClassName}
             />
           </Field>

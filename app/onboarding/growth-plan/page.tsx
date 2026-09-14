@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
@@ -46,7 +47,13 @@ export default function GrowthPlanPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <p className="text-sm font-medium text-brass-600">Phase 1 · Step 5 of 5</p>
+      <Link
+        href="/onboarding/positioning"
+        className="text-sm font-medium text-ink-500 hover:text-ink-900"
+      >
+        ← Back
+      </Link>
+      <p className="mt-4 text-sm font-medium text-brass-600">Phase 1 · Step 5 of 5</p>
       <h1 className="mt-2 font-display text-3xl text-ink-900">
         How often do you want to post?
       </h1>

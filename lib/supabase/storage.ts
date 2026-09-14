@@ -3,14 +3,15 @@ import type { Database } from "./types";
 
 export const PHOTO_BUCKET = "profile-photos";
 export const SCREENSHOT_BUCKET = "profile-screenshots";
+export const BANNER_BUCKET = "profile-banners";
 
 /**
- * Requires "profile-photos" and "profile-screenshots" buckets to exist
- * in Supabase Storage (both private, not public — access is via signed
- * URLs only). Create them once via the dashboard; see README "Setup"
- * for the exact step. This module doesn't create buckets itself since
- * that's a one-time project-level operation, not something that should
- * happen on a request path.
+ * Requires "profile-photos", "profile-screenshots", and "profile-banners"
+ * buckets to exist in Supabase Storage (all private, not public — access
+ * is via signed URLs only). Create them once via the dashboard; see
+ * README "Setup" for the exact step. This module doesn't create buckets
+ * itself since that's a one-time project-level operation, not something
+ * that should happen on a request path.
  */
 
 async function uploadToBucket(
@@ -78,6 +79,49 @@ export async function downloadPhoto(
   path: string
 ): Promise<Buffer> {
   return downloadFromBucket(supabase, PHOTO_BUCKET, path);
+}
+
+export async function uploadBanner(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  buffer: Buffer
+): Promise<string> {
+  const path = `${userId}/banner-${Date.now()}.png`;
+  return uploadToBucket(supabase, BANNER_BUCKET, path, buffer, "image/png");
+}
+
+export async function getSignedBannerUrl(
+  supabase: SupabaseClient<Database>,
+  path: string,
+  expiresInSeconds = 3600
+): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from(BANNER_BUCKET)
+    .createSignedUrl(path, expiresInSeconds);
+
+  if (error || !data) {
+    throw new Error(`Failed to sign banner URL: ${error?.message ?? "unknown error"}`);
+  }
+
+  return data.signedUrl;
+}
+
+/**
+ * Best-effort cleanup, same reasoning as deleteScreenshots: only the
+ * most recent banner is ever shown (GET /api/banner), so leaving older
+ * generations in Storage would just accumulate unreferenced files
+ * forever. Swallows its own errors — this runs after the new banner is
+ * already saved, so a cleanup failure shouldn't surface to the caller.
+ */
+export async function deleteBanners(
+  supabase: SupabaseClient<Database>,
+  paths: string[]
+): Promise<void> {
+  if (paths.length === 0) return;
+  const { error } = await supabase.storage.from(BANNER_BUCKET).remove(paths);
+  if (error) {
+    console.error(`Failed to clean up old banners: ${error.message}`, paths);
+  }
 }
 
 /**

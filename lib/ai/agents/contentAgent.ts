@@ -5,8 +5,12 @@ import { parseAIJson } from "../parseJson";
 export const GeneratedPostSchema = z.object({
   hooks: z.array(z.string().min(1)).length(3),
   body: z.string().min(1),
-  cta: z.string(),
-  hashtags: z.array(z.string()),
+  // The model is instructed to always include these, but sometimes omits
+  // the key entirely instead of sending an empty value (especially if
+  // output gets cut off near the token limit, since these come last in
+  // the object) — default rather than fail the whole post over it.
+  cta: z.string().default(""),
+  hashtags: z.array(z.string()).default([]),
 });
 
 export type GeneratedPost = z.infer<typeof GeneratedPostSchema>;
@@ -60,7 +64,7 @@ export async function generatePost(
 
   const raw = await provider.generate(lines.join("\n"), {
     system: SYSTEM_PROMPT,
-    maxTokens: 2000,
+    maxTokens: 3000,
     temperature: 0.7,
   });
 

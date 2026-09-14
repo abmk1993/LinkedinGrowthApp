@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClassName } from "@/components/ui/Field";
+import { GuestButton } from "@/components/auth/GuestButton";
 
 export default function SignupPage() {
   const supabase = createSupabaseBrowserClient();
@@ -35,19 +36,6 @@ export default function SignupPage() {
     setCheckEmail(true);
   }
 
-  async function handleLinkedInSignup() {
-    setError(null);
-    // Scopes intentionally limited to what LinkedIn's self-serve OAuth
-    // actually exposes: name, photo, email, headline. See the dev
-    // plan's note on why profile text (About/experience) is paste-in,
-    // not OAuth-sourced.
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "linkedin_oidc",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (oauthError) setError(oauthError.message);
-  }
-
   if (checkEmail) {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
@@ -67,25 +55,7 @@ export default function SignupPage() {
         Start with your profile makeover, then move into ongoing growth mode.
       </p>
 
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={handleLinkedInSignup}
-        className="mt-6 w-full"
-      >
-        Sign in with LinkedIn
-      </Button>
-      <p className="mt-1 text-xs text-ink-500">
-        Pulls your name, photo, and headline automatically.
-      </p>
-
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-ink-100" />
-        <span className="text-xs text-ink-500">or</span>
-        <div className="h-px flex-1 bg-ink-100" />
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <Field label="Email" htmlFor="email">
           <input
             id="email"
@@ -116,6 +86,17 @@ export default function SignupPage() {
           Create account
         </Button>
       </form>
+
+      <div className="my-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-ink-100" />
+        <span className="text-xs text-ink-500">or</span>
+        <div className="h-px flex-1 bg-ink-100" />
+      </div>
+
+      <GuestButton variant="secondary" className="w-full" />
+      <p className="mt-2 text-center text-xs text-ink-500">
+        Try it first, no email needed — you can save your progress later.
+      </p>
 
       <p className="mt-6 text-center text-sm text-ink-500">
         Already have an account?{" "}

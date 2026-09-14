@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AIProvider } from "../provider";
+import { AIProvider, AIProviderError } from "../provider";
 import { parseAIJson } from "../parseJson";
 
 export const ProfileAuditSectionSchema = z.object({
@@ -7,8 +7,12 @@ export const ProfileAuditSectionSchema = z.object({
   // Only present for the screenshot path — the model transcribes what
   // it read, since that's the only way we know what's on the profile.
   // The paste-text path already has this from the user, so the model
-  // isn't asked to repeat it back.
-  original_text: z.string().min(1).optional(),
+  // isn't asked to repeat it back. No .min(1): the model is instructed
+  // to skip sections it can't see, but occasionally returns one anyway
+  // with an empty transcription — that's filtered out in code (see
+  // auditProfileFromImages) rather than rejected here, since one bad
+  // section shouldn't fail parsing for the whole response.
+  original_text: z.string().optional(),
   score: z.number().int().min(0).max(100),
   critique: z.string().min(1),
   suggested_rewrite: z.string().min(1),
@@ -143,18 +147,22 @@ export async function auditProfileFromImages(
 
   const result = parseAIJson(raw, ProfileAuditSchema);
 
-  // Contract guard beyond the schema: original_text is optional in the
-  // shared schema (the text path never returns it), but it's mandatory
-  // here — a section the model can't transcribe is one it shouldn't be
-  // scoring either.
-  const missingTranscription = result.sections.filter((s) => !s.original_text);
-  if (missingTranscription.length > 0) {
-    throw new Error(
-      `Profile audit agent returned a section with no transcribed original_text: ${missingTranscription
-        .map((s) => s.section)
-        .join(", ")}`
+  // Contract guard beyond the schema: original_text is mandatory here (a
+  // section the model can't transcribe is one it shouldn't be scoring
+  // either), but the model doesn't always follow "skip sections you
+  // can't see" — sometimes it returns one anyway with an empty
+  // transcription (e.g. an About section that's genuinely blank on the
+  // profile). Drop those rather than failing the whole audit over one
+  // unreadable section; only error out if nothing usable came back.
+  const sections = result.sections.filter(
+    (s): s is typeof s & { original_text: string } =>
+      Boolean(s.original_text && s.original_text.trim().length > 0)
+  );
+  if (sections.length === 0) {
+    throw new AIProviderError(
+      "Could not read any profile text from the screenshot(s) provided — try a clearer screenshot."
     );
   }
 
-  return result;
+  return { sections };
 }

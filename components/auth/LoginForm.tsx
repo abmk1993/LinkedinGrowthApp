@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClassName } from "@/components/ui/Field";
+import { GuestButton } from "@/components/auth/GuestButton";
 
 export function LoginForm() {
   const router = useRouter();
@@ -40,34 +41,8 @@ export function LoginForm() {
     router.refresh();
   }
 
-  async function handleLinkedInLogin() {
-    setError(null);
-    const { error: linkedInError } = await supabase.auth.signInWithOAuth({
-      provider: "linkedin_oidc",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirectedFrom=${redirectedFrom}`,
-      },
-    });
-    if (linkedInError) setError(linkedInError.message);
-  }
-
   return (
     <>
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={handleLinkedInLogin}
-        className="mt-6 w-full"
-      >
-        Sign in with LinkedIn
-      </Button>
-
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-ink-100" />
-        <span className="text-xs text-ink-500">or</span>
-        <div className="h-px flex-1 bg-ink-100" />
-      </div>
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Email" htmlFor="email">
           <input
@@ -98,6 +73,17 @@ export function LoginForm() {
           Log in
         </Button>
       </form>
+
+      <div className="my-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-ink-100" />
+        <span className="text-xs text-ink-500">or</span>
+        <div className="h-px flex-1 bg-ink-100" />
+      </div>
+
+      <GuestButton variant="secondary" className="w-full" />
+      <p className="mt-2 text-center text-xs text-ink-500">
+        Try it without an account — you can save your progress later.
+      </p>
     </>
   );
 }

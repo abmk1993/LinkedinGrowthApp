@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -12,9 +13,17 @@ const LINKS = [
 export function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const supabase = createSupabaseBrowserClient();
+
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setIsGuest(Boolean(data.user?.is_anonymous));
+    });
+  }, [supabase]);
 
   async function handleSignOut() {
-    const supabase = createSupabaseBrowserClient();
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
@@ -22,6 +31,14 @@ export function NavBar() {
 
   return (
     <header className="border-b border-ink-100">
+      {isGuest && (
+        <div className="bg-brass-100 px-6 py-2 text-center text-sm text-ink-900">
+          You&apos;re using a guest session — it only lives in this browser.{" "}
+          <Link href="/account/upgrade" className="font-medium text-brass-600 hover:underline">
+            Save your progress
+          </Link>
+        </div>
+      )}
       <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-6">
           <span className="font-display text-lg text-ink-900">Growth Agent</span>
@@ -42,13 +59,15 @@ export function NavBar() {
             })}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="text-sm font-medium text-ink-500 hover:text-ink-900"
-        >
-          Log out
-        </button>
+        {!isGuest && (
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="text-sm font-medium text-ink-500 hover:text-ink-900"
+          >
+            Log out
+          </button>
+        )}
       </nav>
     </header>
   );

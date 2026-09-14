@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { PHOTO_SCORE_THRESHOLD } from "@/lib/ai/agents/photoAuditAgent";
@@ -109,7 +110,13 @@ export default function PhotoCheckPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <p className="text-sm font-medium text-brass-600">Phase 1 · Step 3 of 5</p>
+      <Link
+        href="/onboarding/profile-audit"
+        className="text-sm font-medium text-ink-500 hover:text-ink-900"
+      >
+        ← Back
+      </Link>
+      <p className="mt-4 text-sm font-medium text-brass-600">Phase 1 · Step 3 of 5</p>
       <h1 className="mt-2 font-display text-3xl text-ink-900">Check your profile photo</h1>
       <p className="mt-2 max-w-prose text-ink-700">
         Upload what you&apos;re currently using on LinkedIn. If it needs work, you&apos;ll

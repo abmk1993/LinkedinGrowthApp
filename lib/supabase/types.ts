@@ -17,6 +17,7 @@ type PostStatus = "draft" | "approved" | "published";
 type AuditSection = "headline" | "about" | "experience";
 type AuditStatus = "pending" | "accepted" | "edited" | "rejected";
 type PhotoStatus = "pending" | "approved_as_is" | "corrected" | "downloaded";
+type BannerTheme = "ink" | "paper" | "brass";
 type ResearchRunStatus = "pending" | "completed" | "failed";
 type ResearchCategory = "update" | "trend" | "post_opportunity";
 
@@ -129,6 +130,24 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profile_photos"]["Insert"]>;
+        Relationships: [];
+      };
+      profile_banners: {
+        Row: {
+          id: string;
+          profile_id: string;
+          theme: BannerTheme;
+          storage_path: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          theme: BannerTheme;
+          storage_path: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profile_banners"]["Insert"]>;
         Relationships: [];
       };
       growth_plans: {

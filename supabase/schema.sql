@@ -65,6 +65,20 @@ create table if not exists profile_photos (
   created_at timestamptz not null default now()
 );
 
+-- Templated LinkedIn cover banners (see lib/banner/generate.ts) — storage_path
+-- points at the rendered PNG in Storage (bucket: profile-banners). One row
+-- per profile (overwritten on regen) — same reasoning as `positioning`
+-- below: the unique constraint is load-bearing, the API upserts on
+-- profile_id, and it closes off a delete-the-wrong-row race that existed
+-- when this was insert-then-cleanup-old-rows instead.
+create table if not exists profile_banners (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null unique references profiles(id) on delete cascade,
+  theme text not null check (theme in ('ink', 'paper', 'brass')),
+  storage_path text not null,
+  created_at timestamptz not null default now()
+);
+
 -- User's chosen posting cadence for Phase 2 (Growth Plan Setup)
 create table if not exists growth_plans (
   id uuid primary key default gen_random_uuid(),
@@ -139,6 +153,7 @@ alter table interests enable row level security;
 alter table profile_snapshots enable row level security;
 alter table profile_audit_items enable row level security;
 alter table profile_photos enable row level security;
+alter table profile_banners enable row level security;
 alter table growth_plans enable row level security;
 alter table positioning enable row level security;
 alter table research_runs enable row level security;
@@ -164,6 +179,9 @@ create policy "profile_audit_items_own_rows" on profile_audit_items
   );
 
 create policy "profile_photos_own_rows" on profile_photos
+  for all using (auth.uid() = profile_id) with check (auth.uid() = profile_id);
+
+create policy "profile_banners_own_rows" on profile_banners
   for all using (auth.uid() = profile_id) with check (auth.uid() = profile_id);
 
 create policy "growth_plans_own_rows" on growth_plans

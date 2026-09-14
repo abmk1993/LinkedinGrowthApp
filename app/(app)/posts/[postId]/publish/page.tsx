@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { LinkedInPreview } from "@/components/posts/LinkedInPreview";
 
 interface Post {
   id: string;
@@ -12,6 +13,12 @@ interface Post {
   status: "draft" | "approved" | "published";
 }
 
+const CAROUSEL_THEME_OPTIONS = [
+  { value: "ink", label: "Ink" },
+  { value: "paper", label: "Paper" },
+  { value: "brass", label: "Brass" },
+] as const;
+
 export default function PublishPage() {
   const params = useParams<{ postId: string }>();
   const router = useRouter();
@@ -20,6 +27,12 @@ export default function PublishPage() {
   const [copied, setCopied] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [carouselTheme, setCarouselTheme] = useState<(typeof CAROUSEL_THEME_OPTIONS)[number]["value"]>(
+    "ink"
+  );
+  const [isGeneratingCarousel, setIsGeneratingCarousel] = useState(false);
+  const [carouselError, setCarouselError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/posts/${params.postId}`)
@@ -43,6 +56,34 @@ export default function PublishPage() {
     await navigator.clipboard.writeText(fullText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleDownloadCarousel() {
+    setCarouselError(null);
+    setIsGeneratingCarousel(true);
+
+    const res = await fetch(`/api/posts/${params.postId}/carousel`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ theme: carouselTheme }),
+    });
+    setIsGeneratingCarousel(false);
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: "Something went wrong." }));
+      setCarouselError(body.error ?? "Something went wrong generating the carousel.");
+      return;
+    }
+
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = "linkedin-carousel.pdf";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
   }
 
   async function handleMarkPublished() {
@@ -72,6 +113,18 @@ export default function PublishPage() {
         {fullText}
       </div>
 
+      <div className="mt-6">
+        <p className="text-sm font-medium text-ink-900">Preview</p>
+        <p className="mt-1 text-xs text-ink-500">Approximately how this will look in the feed.</p>
+        <div className="mt-3">
+          <LinkedInPreview
+            body={post.body ?? ""}
+            cta={post.cta ?? ""}
+            hashtags={post.hashtags ?? []}
+          />
+        </div>
+      </div>
+
       {error && <p className="mt-4 text-sm text-signal-bad">{error}</p>}
 
       <div className="mt-6 flex gap-3">
@@ -87,6 +140,43 @@ export default function PublishPage() {
             Already marked published
           </p>
         )}
+      </div>
+
+      <div className="mt-10 border-t border-ink-100 pt-8">
+        <h2 className="font-display text-xl text-ink-900">Turn this into a carousel</h2>
+        <p className="mt-2 text-ink-700">
+          Native document posts (swipeable slides) get meaningfully more dwell
+          time than plain text — this breaks your post into slides and gives
+          you a PDF ready to upload as a LinkedIn document post.
+        </p>
+
+        <div className="mt-4 flex gap-2">
+          {CAROUSEL_THEME_OPTIONS.map((theme) => (
+            <button
+              key={theme.value}
+              type="button"
+              onClick={() => setCarouselTheme(theme.value)}
+              className={`rounded-card border px-4 py-2 text-sm font-medium transition-colors ${
+                carouselTheme === theme.value
+                  ? "border-brass-500 bg-brass-100 text-ink-900"
+                  : "border-ink-100 text-ink-700 hover:text-ink-900"
+              }`}
+            >
+              {theme.label}
+            </button>
+          ))}
+        </div>
+
+        {carouselError && <p className="mt-3 text-sm text-signal-bad">{carouselError}</p>}
+
+        <Button
+          className="mt-4"
+          variant="secondary"
+          isLoading={isGeneratingCarousel}
+          onClick={handleDownloadCarousel}
+        >
+          Download as carousel (PDF)
+        </Button>
       </div>
     </main>
   );

@@ -1,4 +1,4 @@
-import { ZodSchema } from "zod";
+import { ZodType, ZodTypeDef } from "zod";
 import { jsonrepair } from "jsonrepair";
 import { AIProviderError } from "./provider";
 
@@ -13,7 +13,13 @@ import { AIProviderError } from "./provider";
  * giving up, so a malformed response fails loudly and specifically
  * instead of crashing deeper in the call stack with a confusing error.
  */
-export function parseAIJson<T>(raw: string, schema: ZodSchema<T>): T {
+// The plain `ZodSchema<T>` alias pins the schema's Input type equal to T,
+// which breaks inference for schemas using `.default()` (their Input,
+// pre-default, legitimately differs from their Output, post-default) —
+// callers with such a schema were getting T inferred as the wrong (input)
+// shape. `ZodType<T, ZodTypeDef, any>` only constrains Output, matching
+// what this function actually returns.
+export function parseAIJson<T>(raw: string, schema: ZodType<T, ZodTypeDef, unknown>): T {
   const stripped = stripCodeFence(raw).trim();
 
   const parsed =

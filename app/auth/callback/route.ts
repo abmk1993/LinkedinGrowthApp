@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
- * Handles the redirect back from Supabase after email confirmation,
- * password reset, or (once added) LinkedIn OAuth — all of these use
- * the same code-exchange flow.
+ * Handles the redirect back from Supabase after email confirmation
+ * or password reset.
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);

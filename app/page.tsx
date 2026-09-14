@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GuestButton } from "@/components/auth/GuestButton";
 
 export default function LandingPage() {
   return (
@@ -19,13 +20,18 @@ export default function LandingPage() {
             reviews how you currently present yourself, then helps you write about
             what you actually know, on a schedule you set.
           </p>
-          <div className="mt-10">
+          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
             <Link
               href="/signup"
-              className="inline-block rounded-card bg-brass-500 px-7 py-3.5 font-body text-sm font-semibold text-ink-950 transition-colors hover:bg-brass-400"
+              className="inline-block rounded-card bg-brass-500 px-7 py-3.5 font-body text-sm font-semibold text-paper-raised transition-colors hover:bg-brass-400"
             >
               Start growing my professional presence
             </Link>
+            <GuestButton
+              variant="ghost"
+              label="Try it without an account →"
+              className="!text-paper underline underline-offset-4 hover:!text-brass-400"
+            />
           </div>
         </div>
       </section>

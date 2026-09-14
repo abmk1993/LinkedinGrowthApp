@@ -1,37 +1,38 @@
 import type { Config } from "tailwindcss";
 
 // Design tokens for the LinkedIn Growth Agent.
-// Palette: a "professional workshop" feel — deep ink for authority/focus,
-// a warm brass accent (evokes a printed business card / professional stamp,
-// not a generic SaaS gradient), and a calm paper background for the
-// research/writing screens where the user reads and edits a lot of text.
+// Palette: matches LinkedIn's own brand colors — LinkedIn Blue for the
+// accent (still keyed as `brass` throughout the app; only the hex values
+// changed, not the token names, so no component needed to change), near-
+// black/gray for text, and LinkedIn's actual feed gray for the page
+// background with white for raised cards/inputs.
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
         ink: {
-          950: "#12161C",
-          900: "#1B212B",
-          700: "#3A4353",
-          500: "#5C6675",
-          300: "#9AA3B0",
-          100: "#E4E7EC",
+          950: "#000000",
+          900: "#191919",
+          700: "#38434F",
+          500: "#666666",
+          300: "#A6A6A6",
+          100: "#E0DFDC",
         },
         paper: {
-          DEFAULT: "#F7F5F0",
+          DEFAULT: "#F3F2EF",
           raised: "#FFFFFF",
         },
         brass: {
-          600: "#8A6A2F",
-          500: "#A9823D",
-          400: "#C6A15C",
-          100: "#F1E6CC",
+          600: "#004182",
+          500: "#0A66C2",
+          400: "#378FE9",
+          100: "#EBF4FD",
         },
         signal: {
-          good: "#2F6F4E",
-          warn: "#B4772B",
-          bad: "#B4462F",
+          good: "#057642",
+          warn: "#915907",
+          bad: "#CC1016",
         },
       },
       fontFamily: {

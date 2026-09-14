@@ -8,6 +8,7 @@ type PostUpdate = Database["public"]["Tables"]["posts"]["Update"];
 const UpdatePostSchema = z.object({
   body: z.string().min(1).optional(),
   selectedHook: z.string().min(1).optional(),
+  hooks: z.array(z.string()).optional(),
   cta: z.string().optional(),
   hashtags: z.array(z.string()).optional(),
 });
@@ -63,6 +64,7 @@ export async function PUT(
   const update: PostUpdate = { updated_at: new Date().toISOString() };
   if (parsed.data.body !== undefined) update.body = parsed.data.body;
   if (parsed.data.selectedHook !== undefined) update.selected_hook = parsed.data.selectedHook;
+  if (parsed.data.hooks !== undefined) update.hooks = parsed.data.hooks;
   if (parsed.data.cta !== undefined) update.cta = parsed.data.cta;
   if (parsed.data.hashtags !== undefined) update.hashtags = parsed.data.hashtags;
 

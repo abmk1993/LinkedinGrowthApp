@@ -156,7 +156,7 @@ describe("profileAuditAgent contract", () => {
     expect(result.sections[0]?.original_text).toBe("QA guy");
   });
 
-  it("rejects a section missing its transcribed original_text", async () => {
+  it("rejects when every section comes back with an empty transcription", async () => {
     const provider = new MockAIProvider();
     provider.stub(
       "screenshot(s) of this person's LinkedIn profile page",
@@ -182,6 +182,46 @@ describe("profileAuditAgent contract", () => {
         images: [SCREENSHOT],
       })
     ).rejects.toThrow();
+  });
+
+  it("drops a section with an empty transcription rather than failing the whole audit", async () => {
+    // Real-world bug: a screenshot with e.g. no About content still gets
+    // an "about" entry back from the model, just with an empty
+    // original_text — this must be silently dropped, not fail parsing
+    // for the headline/experience sections that transcribed fine.
+    const provider = new MockAIProvider();
+    provider.stub(
+      "screenshot(s) of this person's LinkedIn profile page",
+      JSON.stringify({
+        sections: [
+          {
+            section: "headline",
+            original_text: "QA guy",
+            score: 60,
+            critique: "Too generic.",
+            suggested_rewrite: "QA Automation Lead | Playwright & AI Testing",
+          },
+          {
+            section: "about",
+            original_text: "",
+            score: 40,
+            critique: "No About section was visible in the screenshots provided.",
+            suggested_rewrite: "Add an About section summarizing your experience and goals.",
+          },
+        ],
+      })
+    );
+
+    const result = await auditProfileFromImages(provider, {
+      profession: "QA Engineer",
+      industry: "IT",
+      skills: ["Playwright"],
+      careerGoal: "Grow visibility",
+      images: [SCREENSHOT],
+    });
+
+    expect(result.sections).toHaveLength(1);
+    expect(result.sections[0]?.section).toBe("headline");
   });
 
   it("passes every provided screenshot through to the provider as images", async () => {
