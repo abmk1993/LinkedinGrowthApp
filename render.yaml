@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: linkedin-growth-agent
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    # `next start` reads $PORT, which Render injects, so no -p flag is needed.
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    # /login is a public static page; / and every protected route either
+    # redirect or need auth, which makes them poor health signals.
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # NEXT_PUBLIC_* values are inlined into the client bundle at build
+      # time, so these must be set before the first build, not after.
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      # Only needed once you reach post generation / research.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SERPER_API_KEY
+        sync: false
