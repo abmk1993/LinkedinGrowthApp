@@ -1,12 +1,14 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClassName } from "@/components/ui/Field";
 import { GuestButton } from "@/components/auth/GuestButton";
 
 export default function SignupPage() {
+  const router = useRouter();
   const supabase = createSupabaseBrowserClient();
 
   const [email, setEmail] = useState("");
@@ -20,7 +22,7 @@ export default function SignupPage() {
     setError(null);
     setIsSubmitting(true);
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
@@ -30,6 +32,14 @@ export default function SignupPage() {
 
     if (signUpError) {
       setError(signUpError.message);
+      return;
+    }
+
+    // If "Confirm email" is off in Supabase, signUp returns an active
+    // session immediately and no confirmation email is sent.
+    if (data.session) {
+      router.push("/onboarding/profile");
+      router.refresh();
       return;
     }
 
