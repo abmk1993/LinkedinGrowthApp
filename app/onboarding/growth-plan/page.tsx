@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
 const CADENCE_OPTIONS = [
-  { value: "daily", label: "Daily", hint: "A new post opportunity every day" },
+  { value: "daily", label: "Daily", hint: "A new post every day" },
   {
     value: "few_times_week",
     label: "A few times a week",
-    hint: "A steady pace without daily pressure",
+    hint: "About every other day — a steady pace without daily pressure",
   },
-  { value: "weekly", label: "Weekly", hint: "One well-considered post a week" },
+  { value: "weekly", label: "Weekly", hint: "One well-considered post every 7 days" },
 ] as const;
 
 export default function GrowthPlanPage() {
@@ -58,8 +58,9 @@ export default function GrowthPlanPage() {
         How often do you want to post?
       </h1>
       <p className="mt-2 max-w-prose text-ink-700">
-        This just shapes how the dashboard nudges you — nothing posts
-        automatically. You can change this any time from the Posting page.
+        Your Posting page will show when your next post is due and how many
+        you&apos;ve published on schedule in a row. Nothing posts automatically, and
+        you can change this any time.
       </p>
 
       <div className="mt-8 space-y-3">

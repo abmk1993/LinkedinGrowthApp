@@ -114,7 +114,8 @@ test.describe("core end-to-end flow", () => {
       await page.getByRole("button", { name: /^weekly/i }).click();
       await page.getByRole("button", { name: /start growing/i }).click();
       await expect(page).toHaveURL(/\/dashboard$/);
-      await expect(page.getByText("Currently posting:")).toContainText("Weekly");
+      await expect(page.getByText("Cadence:")).toContainText("Weekly");
+      await expect(page.getByText("Your first post is due today")).toBeVisible();
     });
 
     await test.step("run research and select a topic", async () => {
@@ -154,6 +155,9 @@ test.describe("core end-to-end flow", () => {
       await expect(page.getByText("Published", { exact: true }).locator("xpath=..")).toContainText(
         "1"
       );
+      // Weekly cadence: the next post is due 7 days after this one.
+      await expect(page.getByText(/^Due in 7 days/)).toBeVisible();
+      await expect(page.getByText("Your last post was on schedule.")).toBeVisible();
     });
   });
 });

@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import {
+  CADENCE_INTERVAL_DAYS,
+  computePostingSchedule,
+  describeDue,
+  describeStreak,
+  type Cadence,
+} from "@/lib/growth/schedule";
 
 interface Summary {
   postsCreated: number;
@@ -43,6 +50,7 @@ export default function DashboardPage() {
   // undefined while loading, null once loaded with no plan — so a slow
   // request doesn't briefly read as "not set".
   const [currentCadence, setCurrentCadence] = useState<string | null | undefined>(undefined);
+  const [publishedDates, setPublishedDates] = useState<string[] | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,7 +71,20 @@ export default function DashboardPage() {
     fetch("/api/growth-plan")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setCurrentCadence(data?.plan?.cadence ?? null));
+
+    fetch("/api/posts?status=published")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { posts?: { published_at: string | null }[] } | null) =>
+        setPublishedDates(
+          (data?.posts ?? []).map((p) => p.published_at).filter((d): d is string => Boolean(d))
+        )
+      );
   }, []);
+
+  const schedule =
+    currentCadence && currentCadence in CADENCE_INTERVAL_DAYS && publishedDates
+      ? computePostingSchedule(currentCadence as Cadence, publishedDates)
+      : null;
 
   async function handleRunResearch() {
     setError(null);
@@ -230,10 +251,38 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-8 rounded-card border border-ink-100 p-6">
-        <h2 className="font-display text-xl text-ink-900">Posting cadence</h2>
-        <p className="mt-2 text-ink-700">
-          Currently posting:{" "}
-          <strong>
+        <h2 className="font-display text-xl text-ink-900">Posting schedule</h2>
+
+        {schedule && (
+          <div className="mt-3" role="status">
+            <p
+              className={`font-display text-2xl ${
+                schedule.daysUntilDue < 0
+                  ? "text-signal-warn"
+                  : schedule.daysUntilDue === 0
+                    ? "text-brass-600"
+                    : "text-signal-good"
+              }`}
+            >
+              {describeDue(schedule)}
+            </p>
+            {describeStreak(schedule) && (
+              <p className="mt-1 text-sm text-ink-700">{describeStreak(schedule)}</p>
+            )}
+            {schedule.daysUntilDue <= 0 && hasResearch && (
+              <Link
+                href="/research"
+                className="mt-2 inline-block text-sm font-medium text-brass-600 hover:underline"
+              >
+                Pick a topic from your latest research →
+              </Link>
+            )}
+          </div>
+        )}
+
+        <p className="mt-3 text-sm text-ink-500">
+          Cadence:{" "}
+          <strong className="text-ink-700">
             {currentCadence === undefined
               ? "…"
               : currentCadence
