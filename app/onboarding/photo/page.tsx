@@ -223,7 +223,7 @@ export default function PhotoCheckPage() {
           </div>
         )}
 
-        {result && (looksGood || notAPhoto || result.status === "corrected") && (
+        {result && (looksGood || notAPhoto || result.status === "corrected") ? (
           <Button
             className="mt-6"
             variant="secondary"
@@ -231,6 +231,17 @@ export default function PhotoCheckPage() {
           >
             {notAPhoto ? "Skip for now" : "Continue to positioning"}
           </Button>
+        ) : (
+          // The photo check is optional — nothing later in the flow needs it,
+          // and it can be run any time from Profile growth.
+          <button
+            type="button"
+            disabled={isAnalyzing || isCorrecting}
+            onClick={() => router.push("/onboarding/positioning")}
+            className="mt-6 block text-sm font-medium text-ink-500 hover:text-ink-900 hover:underline disabled:opacity-50"
+          >
+            Skip photo check for now →
+          </button>
         )}
       </div>
     </main>

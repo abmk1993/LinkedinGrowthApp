@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClassName } from "@/components/ui/Field";
 import { TagInput } from "@/components/ui/TagInput";
+import { Select } from "@/components/ui/Select";
 
 const EXPERIENCE_LEVELS = [
   "Entry level (0-2 years)",
@@ -93,22 +94,13 @@ export default function ProfileOnboardingPage() {
         </Field>
 
         <Field label="Experience level" htmlFor="experienceLevel">
-          <select
+          <Select
             id="experienceLevel"
             required
             value={experienceLevel}
-            onChange={(e) => setExperienceLevel(e.target.value)}
-            className={inputClassName}
-          >
-            <option value="" disabled>
-              Select one
-            </option>
-            {EXPERIENCE_LEVELS.map((level) => (
-              <option key={level} value={level}>
-                {level}
-              </option>
-            ))}
-          </select>
+            onChange={setExperienceLevel}
+            options={EXPERIENCE_LEVELS}
+          />
         </Field>
 
         <Field

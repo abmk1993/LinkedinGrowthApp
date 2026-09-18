@@ -51,7 +51,12 @@ test.describe("core end-to-end flow", () => {
     await test.step("complete professional profile", async () => {
       await page.getByLabel("Profession").fill(QA_PROFILE.profession);
       await page.getByLabel("Industry").fill(QA_PROFILE.industry);
-      await page.getByLabel("Experience level").selectOption({ label: "Senior (6-10 years)" });
+      const experience = page.getByRole("combobox", { name: "Experience level" });
+      await experience.click();
+      await expect(experience).toHaveAttribute("aria-expanded", "true");
+      await page.getByRole("option", { name: "Senior (6-10 years)" }).click();
+      await expect(experience).toHaveAttribute("aria-expanded", "false");
+      await expect(experience).toContainText("Senior (6-10 years)");
       await addTags(page, "Skills", QA_PROFILE.skills);
       await addTags(page, "Topics of interest", QA_PROFILE.interests);
       await page.getByLabel("Career goal").fill(QA_PROFILE.careerGoal);
@@ -79,6 +84,9 @@ test.describe("core end-to-end flow", () => {
     });
 
     await test.step("run photo check", async () => {
+      // Optional step — skippable before anything is uploaded.
+      await expect(page.getByRole("button", { name: /skip photo check for now/i })).toBeVisible();
+
       await page.locator("input[type=file]").setInputFiles({
         name: "headshot.jpg",
         mimeType: "image/jpeg",

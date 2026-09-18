@@ -10,6 +10,7 @@ import {
 import { ProfileAuditTextRequestSchema } from "@/lib/validation/requests";
 import { deleteScreenshots, uploadScreenshot } from "@/lib/supabase/storage";
 import { AIProviderError } from "@/lib/ai/provider";
+import { withTechStack } from "@/lib/profile/techStack";
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8MB
 const MAX_SCREENSHOTS = 6;
@@ -160,7 +161,10 @@ export async function POST(req: NextRequest) {
       profile_snapshot_id: snapshot.id,
       section: s.section,
       critique: s.critique,
-      suggested_rewrite: s.suggested_rewrite,
+      suggested_rewrite:
+        s.section === "about"
+          ? withTechStack(s.suggested_rewrite, baseInput.skills)
+          : s.suggested_rewrite,
       score: s.score,
       status: "pending" as const,
     }));

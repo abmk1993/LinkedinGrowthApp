@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClassName } from "@/components/ui/Field";
 import { TagInput } from "@/components/ui/TagInput";
+import { Select } from "@/components/ui/Select";
 // Type-only import — `lib/banner/generate.ts` pulls in `sharp` (a native,
 // server-only module), so only its type may cross into this client
 // component; the runtime theme list is kept in sync with BANNER_THEMES
@@ -175,18 +176,12 @@ export default function ProfileGrowthPage() {
             />
           </Field>
           <Field label="Experience level" htmlFor="experienceLevel">
-            <select
+            <Select
               id="experienceLevel"
               value={experienceLevel}
-              onChange={(e) => setExperienceLevel(e.target.value)}
-              className={inputClassName}
-            >
-              {EXPERIENCE_LEVELS.map((level) => (
-                <option key={level} value={level}>
-                  {level}
-                </option>
-              ))}
-            </select>
+              onChange={setExperienceLevel}
+              options={EXPERIENCE_LEVELS}
+            />
           </Field>
           <Field label="Skills" htmlFor="skills">
             <TagInput id="skills" value={skills} onChange={setSkills} />

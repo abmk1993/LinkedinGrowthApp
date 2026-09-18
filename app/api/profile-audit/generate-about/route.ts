@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getAIProvider } from "@/lib/ai/getProvider";
 import { generateAboutSection } from "@/lib/ai/agents/aboutGeneratorAgent";
 import { AIProviderError } from "@/lib/ai/provider";
+import { withTechStack } from "@/lib/profile/techStack";
 
 export async function POST() {
   const supabase = createSupabaseServerClient();
@@ -37,12 +38,14 @@ export async function POST() {
       .maybeSingle(),
   ]);
 
+  const skills = (skillRows ?? []).map((s) => s.name);
+
   try {
     const draft = await generateAboutSection(getAIProvider(), {
       profession: profile.profession,
       industry: profile.industry,
       experienceLevel: profile.experience_level ?? "",
-      skills: (skillRows ?? []).map((s) => s.name),
+      skills,
       interests: (interestRows ?? []).map((i) => i.name),
       careerGoal: profile.career_goal ?? "",
       pillars: positioning?.pillars ?? undefined,
@@ -68,7 +71,7 @@ export async function POST() {
         section: "about",
         critique:
           "Drafted from your profile — read it over, edit anything that doesn't sound like you, then accept.",
-        suggested_rewrite: draft.about,
+        suggested_rewrite: withTechStack(draft.about, skills),
         status: "pending",
       })
       .select()
