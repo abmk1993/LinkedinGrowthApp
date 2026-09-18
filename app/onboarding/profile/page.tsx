@@ -117,6 +117,7 @@ export default function ProfileOnboardingPage() {
           hint="The specific tools and disciplines you want to be known for"
         >
           <TagInput
+            id="skills"
             value={skills}
             onChange={setSkills}
             placeholder="Playwright, TypeScript, CI/CD…"
@@ -129,6 +130,7 @@ export default function ProfileOnboardingPage() {
           hint="Optional — broader areas you follow, even if not a core skill"
         >
           <TagInput
+            id="interests"
             value={interests}
             onChange={setInterests}
             placeholder="AI in testing, QA leadership…"

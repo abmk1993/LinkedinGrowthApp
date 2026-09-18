@@ -70,6 +70,7 @@ export async function POST(
       whyYou: researchItem.why_you ?? "",
       suggestedAngle: researchItem.suggested_angle ?? "",
       modifier: parsed.data.modifier,
+      currentPost: parsed.data.current,
     });
 
     const { data: updated, error: updateError } = await supabase

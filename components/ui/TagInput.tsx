@@ -4,13 +4,15 @@ import { KeyboardEvent, useState } from "react";
 import { inputClassName } from "./Field";
 
 interface TagInputProps {
+  /** Put on the text input, so a surrounding <label htmlFor> points at it. */
+  id?: string;
   value: string[];
   onChange: (next: string[]) => void;
   placeholder?: string;
   maxTags?: number;
 }
 
-export function TagInput({ value, onChange, placeholder, maxTags = 30 }: TagInputProps) {
+export function TagInput({ id, value, onChange, placeholder, maxTags = 30 }: TagInputProps) {
   const [draft, setDraft] = useState("");
   const atLimit = value.length >= maxTags;
 
@@ -59,6 +61,7 @@ export function TagInput({ value, onChange, placeholder, maxTags = 30 }: TagInpu
         ))}
         {!atLimit && (
           <input
+            id={id}
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}

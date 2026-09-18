@@ -38,8 +38,11 @@ export default function DashboardPage() {
 
   const [summary, setSummary] = useState<Summary | null>(null);
   const [presence, setPresence] = useState<PresenceScore | null>(null);
+  const [presenceLoaded, setPresenceLoaded] = useState(false);
   const [hasResearch, setHasResearch] = useState<boolean | null>(null);
-  const [currentCadence, setCurrentCadence] = useState<string | null>(null);
+  // undefined while loading, null once loaded with no plan — so a slow
+  // request doesn't briefly read as "not set".
+  const [currentCadence, setCurrentCadence] = useState<string | null | undefined>(undefined);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +53,8 @@ export default function DashboardPage() {
 
     fetch("/api/presence-score")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => data && setPresence(data));
+      .then((data) => data && setPresence(data))
+      .finally(() => setPresenceLoaded(true));
 
     fetch("/api/research/latest")
       .then((res) => (res.ok ? res.json() : null))
@@ -90,8 +94,9 @@ export default function DashboardPage() {
           <div>
             <h2 className="font-display text-xl text-ink-900">Presence score</h2>
             <p className="mt-1 max-w-prose text-sm text-ink-700">
-              How your headline, About, experience, and photo are scoring right
-              now — from your last profile and photo checks.
+              How your headline, About, experience, and photo scored at your last
+              profile and photo checks. Accepted rewrites count once they&apos;re live —
+              update LinkedIn, then re-run the audit to see your new score.
             </p>
           </div>
           <div className="text-right">
@@ -105,7 +110,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {presence?.overall == null ? (
+        {!presenceLoaded ? (
+          <p className="mt-4 text-sm text-ink-500">Loading…</p>
+        ) : presence?.overall == null ? (
           <p className="mt-4 text-sm text-ink-500">
             Run your{" "}
             <Link href="/onboarding/profile-audit" className="font-medium text-brass-600 hover:underline">
@@ -130,7 +137,7 @@ export default function DashboardPage() {
                 </p>
                 {(presence.profileScore == null || presence.profileScore < HEALTHY_SCORE) && (
                   <Link
-                    href="/onboarding/profile-audit"
+                    href="/onboarding/profile-audit?rerun=1"
                     className="text-xs font-medium text-brass-600 hover:underline"
                   >
                     Re-run profile audit
@@ -144,7 +151,7 @@ export default function DashboardPage() {
                 </p>
                 {(presence.photoScore == null || presence.photoScore < HEALTHY_SCORE) && (
                   <Link
-                    href="/onboarding/photo"
+                    href="/onboarding/photo?rerun=1"
                     className="text-xs font-medium text-brass-600 hover:underline"
                   >
                     Re-run photo check
@@ -213,13 +220,26 @@ export default function DashboardPage() {
             </Button>
           )}
         </div>
+        {isRunning && (
+          <p className="mt-3 text-sm text-ink-500" role="status">
+            Searching what&apos;s new for each of your content pillars and picking out
+            post-worthy angles — this usually takes about a minute. You&apos;ll be taken to
+            the results when it&apos;s done.
+          </p>
+        )}
       </div>
 
       <div className="mt-8 rounded-card border border-ink-100 p-6">
         <h2 className="font-display text-xl text-ink-900">Posting cadence</h2>
         <p className="mt-2 text-ink-700">
           Currently posting:{" "}
-          <strong>{currentCadence ? CADENCE_LABELS[currentCadence] : "not set"}</strong>
+          <strong>
+            {currentCadence === undefined
+              ? "…"
+              : currentCadence
+                ? CADENCE_LABELS[currentCadence]
+                : "not set"}
+          </strong>
         </p>
         <Link
           href="/onboarding/growth-plan"

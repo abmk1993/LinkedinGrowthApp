@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
+import { formatHashtags } from "@/lib/posts/composePost";
 
 type PostUpdate = Database["public"]["Tables"]["posts"]["Update"];
 
@@ -66,7 +67,7 @@ export async function PUT(
   if (parsed.data.selectedHook !== undefined) update.selected_hook = parsed.data.selectedHook;
   if (parsed.data.hooks !== undefined) update.hooks = parsed.data.hooks;
   if (parsed.data.cta !== undefined) update.cta = parsed.data.cta;
-  if (parsed.data.hashtags !== undefined) update.hashtags = parsed.data.hashtags;
+  if (parsed.data.hashtags !== undefined) update.hashtags = formatHashtags(parsed.data.hashtags);
 
   const { data: updated, error } = await supabase
     .from("posts")

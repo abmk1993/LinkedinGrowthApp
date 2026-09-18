@@ -66,7 +66,13 @@ export async function POST(
     });
   } catch (err) {
     if (err instanceof AIProviderError) {
-      return NextResponse.json({ error: err.message }, { status: 502 });
+      // The raw message can be a full schema-validation dump — log it,
+      // but show the user something they can act on.
+      console.error("Carousel generation failed:", err.message);
+      return NextResponse.json(
+        { error: "Couldn't turn this post into slides this time. Please try again." },
+        { status: 502 }
+      );
     }
     throw err;
   }

@@ -1,7 +1,6 @@
 interface LinkedInPreviewProps {
-  body: string;
-  cta: string;
-  hashtags: string[];
+  /** The full post as it will be pasted — build it with composePostText. */
+  text: string;
 }
 
 // LinkedIn doesn't publish an exact cutoff — creator tools in this space
@@ -9,12 +8,7 @@ interface LinkedInPreviewProps {
 // which is what this approximates. Treat it as a guide, not a guarantee.
 const TRUNCATE_AT = 210;
 
-export function LinkedInPreview({ body, cta, hashtags }: LinkedInPreviewProps) {
-  const hashtagText = hashtags
-    .map((h) => (h.startsWith("#") ? h : `#${h}`))
-    .join(" ");
-  const combined = [body, cta, hashtagText].filter(Boolean).join("\n\n");
-
+export function LinkedInPreview({ text: combined }: LinkedInPreviewProps) {
   const isTruncated = combined.length > TRUNCATE_AT;
   const visible = isTruncated ? combined.slice(0, TRUNCATE_AT).trimEnd() : combined;
   const hiddenCount = combined.length - visible.length;

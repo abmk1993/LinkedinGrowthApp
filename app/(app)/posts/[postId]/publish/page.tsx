@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { LinkedInPreview } from "@/components/posts/LinkedInPreview";
+import { PlaceholderWarning } from "@/components/posts/PlaceholderWarning";
+import { composePostText } from "@/lib/posts/composePost";
 
 interface Post {
   id: string;
+  hooks: string[] | null;
+  selected_hook: string | null;
   body: string | null;
   cta: string | null;
   hashtags: string[] | null;
@@ -48,9 +52,12 @@ export default function PublishPage() {
     );
   }
 
-  const fullText = [post.body, post.cta, post.hashtags?.join(" ")]
-    .filter(Boolean)
-    .join("\n\n");
+  const fullText = composePostText({
+    hook: post.selected_hook ?? post.hooks?.[0],
+    body: post.body,
+    cta: post.cta,
+    hashtags: post.hashtags,
+  });
 
   async function handleCopy() {
     await navigator.clipboard.writeText(fullText);
@@ -109,7 +116,11 @@ export default function PublishPage() {
         Copy this to LinkedIn yourself, then come back and mark it published.
       </p>
 
-      <div className="mt-6 whitespace-pre-wrap rounded-card border border-ink-100 bg-paper-raised p-5 text-sm text-ink-900">
+      <PlaceholderWarning text={fullText} className="mt-6" />
+
+      <div
+        data-testid="post-text"
+        className="mt-6 whitespace-pre-wrap rounded-card border border-ink-100 bg-paper-raised p-5 text-sm text-ink-900">
         {fullText}
       </div>
 
@@ -117,11 +128,7 @@ export default function PublishPage() {
         <p className="text-sm font-medium text-ink-900">Preview</p>
         <p className="mt-1 text-xs text-ink-500">Approximately how this will look in the feed.</p>
         <div className="mt-3">
-          <LinkedInPreview
-            body={post.body ?? ""}
-            cta={post.cta ?? ""}
-            hashtags={post.hashtags ?? []}
-          />
+          <LinkedInPreview text={fullText} />
         </div>
       </div>
 

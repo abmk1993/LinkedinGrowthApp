@@ -111,7 +111,7 @@ export default function PositioningPage() {
       ) : (
         <div className="mt-8 space-y-6">
           <Field label="Content pillars" htmlFor="pillars" hint="3 to 5 pillars">
-            <TagInput value={pillars} onChange={setPillars} maxTags={5} />
+            <TagInput id="pillars" value={pillars} onChange={setPillars} maxTags={5} />
           </Field>
 
           <Field

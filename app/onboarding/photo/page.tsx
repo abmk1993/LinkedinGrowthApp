@@ -1,10 +1,10 @@
 "use client";
 
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { PHOTO_SCORE_THRESHOLD } from "@/lib/ai/agents/photoAuditAgent";
+import { NOT_A_PHOTO_ISSUE, PHOTO_SCORE_THRESHOLD } from "@/lib/ai/agents/photoAuditAgent";
 
 interface PhotoRecord {
   id: string;
@@ -26,6 +26,22 @@ export default function PhotoCheckPage() {
   const [result, setResult] = useState<PhotoRecord | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [correctedLoaded, setCorrectedLoaded] = useState(false);
+
+  // Restore the last check so a reload or Back doesn't lose it. "Re-run"
+  // links ask for a fresh upload instead.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("rerun")) return;
+    fetch("/api/photo/latest")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data?.photo) return;
+        // Don't clobber a file the user picked while this was loading.
+        setResult((current) => current ?? data.photo);
+        setPreviewUrl((current) => current ?? data.originalUrl);
+        setDownloadUrl((current) => current ?? data.correctedUrl);
+      });
+  }, []);
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0];
@@ -33,6 +49,8 @@ export default function PhotoCheckPage() {
     setFile(selected);
     setPreviewUrl(URL.createObjectURL(selected));
     setResult(null);
+    setDownloadUrl(null);
+    setCorrectedLoaded(false);
     setError(null);
   }
 
@@ -107,6 +125,7 @@ export default function PhotoCheckPage() {
   }
 
   const looksGood = result && result.score >= PHOTO_SCORE_THRESHOLD;
+  const notAPhoto = result?.issues.includes(NOT_A_PHOTO_ISSUE) ?? false;
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -153,13 +172,19 @@ export default function PhotoCheckPage() {
           <div className="mt-6 rounded-card border border-ink-100 p-5">
             <p className="text-sm text-ink-500">Score: {result.score}/100</p>
             <p className="mt-2 text-sm text-ink-700">{result.critique}</p>
-            {result.issues.length > 0 && (
+            {result.issues.length > 0 && !notAPhoto && (
               <p className="mt-2 text-xs text-ink-500">
                 Flagged: {result.issues.join(", ")}
               </p>
             )}
 
-            {looksGood ? (
+            {notAPhoto ? (
+              <p className="mt-4 text-sm font-medium text-signal-warn">
+                This doesn&apos;t look like a real photo of you, so there&apos;s nothing to
+                correct without changing who&apos;s in it. Choose an actual photo above to
+                get corrections.
+              </p>
+            ) : looksGood ? (
               <p className="mt-4 text-sm font-medium text-signal-good">
                 Looks good — no changes needed.
               </p>
@@ -170,12 +195,20 @@ export default function PhotoCheckPage() {
             ) : (
               downloadUrl && (
                 <>
-                  {/* eslint-disable-next-line @next/next/no-img-element -- remote signed URL, not a static asset next/image can optimize */}
-                  <img
-                    src={downloadUrl}
-                    alt="Corrected profile photo preview"
-                    className="mt-4 h-40 w-40 rounded-card object-cover"
-                  />
+                  <div className="relative mt-4 h-40 w-40">
+                    {!correctedLoaded && (
+                      <div className="absolute inset-0 flex animate-pulse items-center justify-center rounded-card bg-ink-100 text-xs text-ink-500">
+                        Loading photo…
+                      </div>
+                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element -- remote signed URL, not a static asset next/image can optimize */}
+                    <img
+                      src={downloadUrl}
+                      alt="Corrected profile photo preview"
+                      onLoad={() => setCorrectedLoaded(true)}
+                      className="h-40 w-40 rounded-card object-cover"
+                    />
+                  </div>
                   <Button
                     className="mt-4"
                     variant="secondary"
@@ -190,13 +223,13 @@ export default function PhotoCheckPage() {
           </div>
         )}
 
-        {result && (looksGood || result.status === "corrected") && (
+        {result && (looksGood || notAPhoto || result.status === "corrected") && (
           <Button
             className="mt-6"
             variant="secondary"
             onClick={() => router.push("/onboarding/positioning")}
           >
-            Continue to positioning
+            {notAPhoto ? "Skip for now" : "Continue to positioning"}
           </Button>
         )}
       </div>

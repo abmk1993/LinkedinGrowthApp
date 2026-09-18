@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const status = req.nextUrl.searchParams.get("status");
   let query = supabase
     .from("posts")
-    .select("id, body, status, published_at, created_at")
+    .select("id, selected_hook, body, status, published_at, created_at")
     .eq("profile_id", user.id)
     .order("created_at", { ascending: false });
 

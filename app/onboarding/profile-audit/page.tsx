@@ -13,6 +13,7 @@ interface AuditItem {
   critique: string;
   suggested_rewrite: string;
   status: "pending" | "accepted" | "edited" | "rejected";
+  final_text?: string | null;
 }
 
 const SECTION_LABELS: Record<AuditItem["section"], string> = {
@@ -40,12 +41,42 @@ export default function ProfileAuditPage() {
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [items, setItems] = useState<AuditItem[]>([]);
   const [editedText, setEditedText] = useState<Record<string, string>>({});
-  const [savingId, setSavingId] = useState<string | null>(null);
+  // A set, not a single id: decisions on several items can be in flight at once.
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
   const [reopenedIds, setReopenedIds] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [isGeneratingAbout, setIsGeneratingAbout] = useState(false);
   const [generateAboutError, setGenerateAboutError] = useState<string | null>(null);
+
+  // Restore the last audit so a reload or Back doesn't lose it (and
+  // doesn't cost another analysis). "Re-run" links ask for a fresh form.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("rerun")) return;
+    fetch("/api/profile-audit/latest")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { hasAnalysis: boolean; items: AuditItem[] } | null) => {
+        if (!data || data.items.length === 0) return;
+        setItems((current) => (current.length > 0 ? current : data.items));
+        setHasAnalyzed((current) => current || data.hasAnalysis);
+        setEditedText((current) => {
+          const restored: Record<string, string> = {};
+          for (const item of data.items) {
+            if (item.status === "edited" && item.final_text) restored[item.id] = item.final_text;
+          }
+          return { ...restored, ...current };
+        });
+      });
+  }, []);
+
+  function startNewAudit() {
+    setItems([]);
+    setEditedText({});
+    setReopenedIds(new Set());
+    setSaveErrors({});
+    setHasAnalyzed(false);
+  }
 
   // Derives preview URLs from `files` and revokes them whenever `files`
   // changes or this form unmounts (e.g. analysis succeeds and this form
@@ -142,7 +173,12 @@ export default function ProfileAuditPage() {
     item: AuditItem,
     status: "accepted" | "edited" | "rejected"
   ) {
-    setSavingId(item.id);
+    setSavingIds((prev) => new Set(prev).add(item.id));
+    setSaveErrors((prev) => {
+      const next = { ...prev };
+      delete next[item.id];
+      return next;
+    });
 
     const res = await fetch(`/api/profile-audit/${item.id}`, {
       method: "PUT",
@@ -151,20 +187,31 @@ export default function ProfileAuditPage() {
         status,
         finalText: status === "edited" ? editedText[item.id] : undefined,
       }),
+    }).catch(() => null);
+
+    setSavingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
     });
 
-    setSavingId(null);
-
-    if (res.ok) {
-      setItems((prev) =>
-        prev.map((i) => (i.id === item.id ? { ...i, status } : i))
-      );
-      setReopenedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(item.id);
-        return next;
-      });
+    if (!res?.ok) {
+      const body = await res?.json().catch(() => null);
+      setSaveErrors((prev) => ({
+        ...prev,
+        [item.id]: body?.error ?? "Couldn't save that — please try again.",
+      }));
+      return;
     }
+
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, status } : i))
+    );
+    setReopenedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
   }
 
   function reopenItem(id: string) {
@@ -413,7 +460,7 @@ export default function ProfileAuditPage() {
                   </p>
                   <textarea
                     rows={item.section === "about" ? 18 : 6}
-                    defaultValue={item.suggested_rewrite}
+                    defaultValue={editedText[item.id] ?? item.suggested_rewrite}
                     onChange={(e) =>
                       setEditedText((prev) => ({ ...prev, [item.id]: e.target.value }))
                     }
@@ -426,7 +473,7 @@ export default function ProfileAuditPage() {
                   <div className="mt-3 flex gap-2">
                     <Button
                       type="button"
-                      isLoading={savingId === item.id}
+                      isLoading={savingIds.has(item.id)}
                       onClick={() =>
                         saveDecision(
                           item,
@@ -441,7 +488,7 @@ export default function ProfileAuditPage() {
                     <Button
                       type="button"
                       variant="secondary"
-                      isLoading={savingId === item.id}
+                      isLoading={savingIds.has(item.id)}
                       onClick={() => saveDecision(item, "rejected")}
                     >
                       Reject
@@ -470,17 +517,27 @@ export default function ProfileAuditPage() {
                     </button>
                   </div>
                 )}
+                {saveErrors[item.id] && (
+                  <p className="mt-2 text-sm text-signal-bad">{saveErrors[item.id]}</p>
+                )}
               </div>
             );
           })}
 
-          <Button
-            type="button"
-            disabled={!allDecided}
-            onClick={() => router.push("/onboarding/photo")}
-          >
-            Continue to photo check
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              disabled={!allDecided}
+              onClick={() => router.push("/onboarding/photo")}
+            >
+              Continue to photo check
+            </Button>
+            {hasAnalyzed && (
+              <Button type="button" variant="ghost" onClick={startNewAudit}>
+                Start a new audit
+              </Button>
+            )}
+          </div>
         </div>
       )}
     </main>

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { inputClassName } from "@/components/ui/Field";
 import { TagInput } from "@/components/ui/TagInput";
 import { LinkedInPreview } from "@/components/posts/LinkedInPreview";
+import { PlaceholderWarning } from "@/components/posts/PlaceholderWarning";
+import { MAX_POST_LENGTH, composePostText } from "@/lib/posts/composePost";
 
 interface Post {
   id: string;
@@ -31,8 +33,6 @@ const MODIFIERS = [
   { value: "more_personal", label: "More personal" },
   { value: "more_educational", label: "More educational" },
 ] as const;
-
-const MAX_BODY_LENGTH = 3000;
 
 function toState(post: Post): EditableState {
   return {
@@ -111,7 +111,10 @@ export default function PostEditorPage() {
     const res = await fetch(`/api/posts/${params.postId}/regenerate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ modifier }),
+      body: JSON.stringify({
+        modifier,
+        current: { hook: state.selectedHook, body: state.body, cta: state.cta },
+      }),
     });
     setIsRegenerating(null);
 
@@ -173,8 +176,13 @@ export default function PostEditorPage() {
     );
   }
 
-  const bodyLength = state.body.length;
-  const overLimit = bodyLength > MAX_BODY_LENGTH;
+  const fullText = composePostText({
+    hook: state.selectedHook,
+    body: state.body,
+    cta: state.cta,
+    hashtags: state.hashtags,
+  });
+  const overLimit = fullText.length > MAX_POST_LENGTH;
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -211,9 +219,11 @@ export default function PostEditorPage() {
           className={`${inputClassName} mt-2`}
         />
         <p className={`mt-1 text-xs ${overLimit ? "text-signal-bad" : "text-ink-500"}`}>
-          {bodyLength.toLocaleString()} / {MAX_BODY_LENGTH.toLocaleString()} characters
+          {fullText.length.toLocaleString()} / {MAX_POST_LENGTH.toLocaleString()} characters
+          including hook, call to action, and hashtags
           {overLimit && " — over LinkedIn's limit"}
         </p>
+        <PlaceholderWarning text={fullText} className="mt-3" />
       </div>
 
       <div className="mt-4">
@@ -226,9 +236,12 @@ export default function PostEditorPage() {
       </div>
 
       <div className="mt-4">
-        <p className="text-sm font-medium text-ink-900">Hashtags</p>
+        <label htmlFor="hashtags" className="block text-sm font-medium text-ink-900">
+          Hashtags
+        </label>
         <div className="mt-2">
           <TagInput
+            id="hashtags"
             value={state.hashtags}
             onChange={(next) => setState((prev) => (prev ? { ...prev, hashtags: next } : prev))}
             placeholder="Add a hashtag"
@@ -278,7 +291,7 @@ export default function PostEditorPage() {
         <p className="text-sm font-medium text-ink-900">Preview</p>
         <p className="mt-1 text-xs text-ink-500">Approximately how this will look in the feed.</p>
         <div className="mt-3">
-          <LinkedInPreview body={state.body} cta={state.cta} hashtags={state.hashtags} />
+          <LinkedInPreview text={fullText} />
         </div>
       </div>
     </main>

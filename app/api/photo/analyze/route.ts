@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getAIProvider } from "@/lib/ai/getProvider";
-import { auditPhoto } from "@/lib/ai/agents/photoAuditAgent";
+import { auditPhoto, NOT_A_PHOTO_ISSUE } from "@/lib/ai/agents/photoAuditAgent";
 import { uploadPhoto } from "@/lib/supabase/storage";
 import { AIProviderError } from "@/lib/ai/provider";
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         original_url: originalPath,
         score: audit.score,
         critique: audit.critique,
-        issues: audit.issues,
+        issues: audit.is_photograph ? audit.issues : [NOT_A_PHOTO_ISSUE],
         status: "pending",
       })
       .select()

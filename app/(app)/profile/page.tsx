@@ -189,10 +189,10 @@ export default function ProfileGrowthPage() {
             </select>
           </Field>
           <Field label="Skills" htmlFor="skills">
-            <TagInput value={skills} onChange={setSkills} />
+            <TagInput id="skills" value={skills} onChange={setSkills} />
           </Field>
           <Field label="Topics of interest" htmlFor="interests">
-            <TagInput value={interests} onChange={setInterests} />
+            <TagInput id="interests" value={interests} onChange={setInterests} />
           </Field>
           <Field label="Career goal" htmlFor="careerGoal">
             <textarea
@@ -236,13 +236,13 @@ export default function ProfileGrowthPage() {
         </p>
         <div className="mt-3 flex gap-4">
           <Link
-            href="/onboarding/profile-audit"
+            href="/onboarding/profile-audit?rerun=1"
             className="text-sm font-medium text-brass-600 hover:underline"
           >
             Re-run profile audit
           </Link>
           <Link
-            href="/onboarding/photo"
+            href="/onboarding/photo?rerun=1"
             className="text-sm font-medium text-brass-600 hover:underline"
           >
             Re-run photo check

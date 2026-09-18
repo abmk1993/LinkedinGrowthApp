@@ -36,5 +36,14 @@ export const RegeneratePostRequestSchema = z.object({
     z.enum(["shorten", "more_technical", "more_personal", "more_educational"]),
     z.object({ changeTone: z.string().min(1) }),
   ]),
+  // The editor's current (possibly hand-edited) text — the modifier is
+  // applied to this rather than drafting a new post from scratch.
+  current: z
+    .object({
+      hook: z.string().max(1000),
+      body: z.string().min(1).max(10000),
+      cta: z.string().max(1000),
+    })
+    .optional(),
 });
 export type RegeneratePostRequest = z.infer<typeof RegeneratePostRequestSchema>;

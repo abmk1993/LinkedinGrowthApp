@@ -5,7 +5,7 @@ import { downloadPhoto, uploadPhoto } from "@/lib/supabase/storage";
 import { correctPhoto, SHARP_CORRECTABLE_ISSUES } from "@/lib/photo/correct";
 import { replaceAttire } from "@/lib/photo/attire";
 import { getGeminiImageProvider } from "@/lib/ai/geminiImageProvider";
-import { PHOTO_ISSUES } from "@/lib/ai/agents/photoAuditAgent";
+import { NOT_A_PHOTO_ISSUE, PHOTO_ISSUES } from "@/lib/ai/agents/photoAuditAgent";
 import { AIProviderError } from "@/lib/ai/provider";
 
 const RequestSchema = z.object({ photoId: z.string().uuid() });
@@ -36,6 +36,16 @@ export async function POST(req: NextRequest) {
     .single();
   if (fetchError || !photoRow) {
     return NextResponse.json({ error: "Photo not found" }, { status: 404 });
+  }
+
+  if ((photoRow.issues as string[]).includes(NOT_A_PHOTO_ISSUE)) {
+    return NextResponse.json(
+      {
+        error:
+          "This doesn't look like a real photo of you, so it can't be corrected — upload an actual photo instead.",
+      },
+      { status: 400 }
+    );
   }
 
   const issues = (photoRow.issues as string[]).filter(
