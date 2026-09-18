@@ -83,9 +83,15 @@ create table if not exists profile_banners (
 create table if not exists growth_plans (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid not null references profiles(id) on delete cascade,
-  cadence text not null check (cadence in ('daily', 'few_times_week', 'weekly')),
+  cadence text not null check (cadence in ('daily', 'few_times_week', 'weekly', 'none')),
   created_at timestamptz not null default now()
 );
+
+-- 'none' = "No fixed schedule". `create table if not exists` won't update
+-- the check on an existing table, so replace it explicitly (safe to re-run).
+alter table growth_plans drop constraint if exists growth_plans_cadence_check;
+alter table growth_plans add constraint growth_plans_cadence_check
+  check (cadence in ('daily', 'few_times_week', 'weekly', 'none'));
 
 -- AI-generated positioning, one row per profile (overwritten on regen).
 -- The unique constraint is load-bearing: the API upserts on profile_id,

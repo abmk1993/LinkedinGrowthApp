@@ -8,6 +8,7 @@ import {
   CADENCE_INTERVAL_DAYS,
   computePostingSchedule,
   describeDue,
+  describeLastPost,
   describeStreak,
   type Cadence,
 } from "@/lib/growth/schedule";
@@ -29,6 +30,7 @@ const CADENCE_LABELS: Record<string, string> = {
   daily: "Daily",
   few_times_week: "A few times a week",
   weekly: "Weekly",
+  none: "No fixed schedule",
 };
 
 const HEALTHY_SCORE = 70;
@@ -278,6 +280,12 @@ export default function DashboardPage() {
               </Link>
             )}
           </div>
+        )}
+
+        {currentCadence === "none" && publishedDates && (
+          <p className="mt-3 text-ink-700" role="status">
+            {describeLastPost(publishedDates)}
+          </p>
         )}
 
         <p className="mt-3 text-sm text-ink-500">

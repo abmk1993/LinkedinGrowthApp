@@ -49,7 +49,19 @@ export async function POST(req: NextRequest) {
     profile_id: user.id,
     cadence: parsed.data.cadence,
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // 23514 = check violation: the database predates the 'none' cadence.
+    if (error.code === "23514" && parsed.data.cadence === "none") {
+      return NextResponse.json(
+        {
+          error:
+            "\"No fixed schedule\" needs a one-time database update — run the growth_plans constraint change from supabase/schema.sql.",
+        },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }

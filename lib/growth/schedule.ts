@@ -82,6 +82,19 @@ export function describeDue(schedule: PostingSchedule): string {
   return `Due in ${daysUntilDue} days (${weekday})`;
 }
 
+/** For "No fixed schedule": when the last post went out, with no due date or streak. */
+export function describeLastPost(publishedAt: Array<string | Date>, now: Date = new Date()): string {
+  const days = publishedAt
+    .map((d) => new Date(d))
+    .filter((d) => !Number.isNaN(d.getTime()))
+    .map(dayIndex);
+  if (days.length === 0) return "No posts published yet";
+  const ago = dayIndex(now) - Math.max(...days);
+  if (ago <= 0) return "Last post: today";
+  if (ago === 1) return "Last post: yesterday";
+  return `Last post: ${ago} days ago`;
+}
+
 export function describeStreak(schedule: PostingSchedule): string | null {
   if (!schedule.lastPublished) return null;
   if (schedule.streak === 0) return "Post today to get back on schedule.";

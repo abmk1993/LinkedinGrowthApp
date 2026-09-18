@@ -22,7 +22,7 @@ export const ProfileAuditTextRequestSchema = z
 export type ProfileAuditTextRequest = z.infer<typeof ProfileAuditTextRequestSchema>;
 
 export const GrowthPlanRequestSchema = z.object({
-  cadence: z.enum(["daily", "few_times_week", "weekly"]),
+  cadence: z.enum(["daily", "few_times_week", "weekly", "none"]),
 });
 export type GrowthPlanRequest = z.infer<typeof GrowthPlanRequestSchema>;
 

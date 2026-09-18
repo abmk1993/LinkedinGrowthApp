@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computePostingSchedule, describeDue, describeStreak } from "@/lib/growth/schedule";
+import {
+  computePostingSchedule,
+  describeDue,
+  describeLastPost,
+  describeStreak,
+} from "@/lib/growth/schedule";
 
 // Local-time dates, matching how the dashboard calls this in the browser.
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h);
@@ -57,5 +62,17 @@ describe("computePostingSchedule", () => {
     );
     expect(s.lastPublished?.getDate()).toBe(18);
     expect(s.streak).toBe(2);
+  });
+});
+
+describe("describeLastPost (no fixed schedule)", () => {
+  it("says when nothing has been published", () => {
+    expect(describeLastPost([], NOW)).toBe("No posts published yet");
+  });
+
+  it("describes the most recent post in calendar days", () => {
+    expect(describeLastPost([at(2026, 9, 19, 8)], NOW)).toBe("Last post: today");
+    expect(describeLastPost([at(2026, 9, 18, 23)], NOW)).toBe("Last post: yesterday");
+    expect(describeLastPost([at(2026, 9, 10), at(2026, 9, 15)], NOW)).toBe("Last post: 4 days ago");
   });
 });

@@ -12,7 +12,7 @@
  * scaffolding this file the first time — see git history).
  */
 
-type Cadence = "daily" | "few_times_week" | "weekly";
+type Cadence = "daily" | "few_times_week" | "weekly" | "none";
 type PostStatus = "draft" | "approved" | "published";
 type AuditSection = "headline" | "about" | "experience";
 type AuditStatus = "pending" | "accepted" | "edited" | "rejected";

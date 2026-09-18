@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,11 @@ const CADENCE_OPTIONS = [
     hint: "About every other day — a steady pace without daily pressure",
   },
   { value: "weekly", label: "Weekly", hint: "One well-considered post every 7 days" },
+  {
+    value: "none",
+    label: "No fixed schedule",
+    hint: "Post whenever you have something to say — no due dates or streaks",
+  },
 ] as const;
 
 export default function GrowthPlanPage() {
@@ -23,6 +28,16 @@ export default function GrowthPlanPage() {
   );
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Revisiting via "Change cadence" starts from the current choice.
+  useEffect(() => {
+    fetch("/api/growth-plan")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const current = CADENCE_OPTIONS.find((o) => o.value === data?.plan?.cadence);
+        if (current) setSelected((prev) => prev ?? current.value);
+      });
+  }, []);
 
   async function handleContinue() {
     if (!selected) return;
@@ -58,9 +73,9 @@ export default function GrowthPlanPage() {
         How often do you want to post?
       </h1>
       <p className="mt-2 max-w-prose text-ink-700">
-        Your Posting page will show when your next post is due and how many
-        you&apos;ve published on schedule in a row. Nothing posts automatically, and
-        you can change this any time.
+        With a schedule, your Posting page shows when your next post is due and
+        how many you&apos;ve published on schedule in a row. Nothing posts
+        automatically, and you can change this any time.
       </p>
 
       <div className="mt-8 space-y-3">
