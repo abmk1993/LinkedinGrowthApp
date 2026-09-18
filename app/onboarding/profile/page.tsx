@@ -83,7 +83,7 @@ export default function ProfileOnboardingPage() {
           />
         </Field>
 
-        <Field label="Industry" htmlFor="industry" hint="e.g. Sportsbook / IT">
+        <Field label="Industry" htmlFor="industry" hint="e.g. iGaming / IT">
           <input
             id="industry"
             required
