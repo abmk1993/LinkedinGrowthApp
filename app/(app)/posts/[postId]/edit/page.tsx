@@ -103,7 +103,8 @@ export default function PostEditorPage() {
     }
   }
 
-  async function handleRegenerate(modifier: (typeof MODIFIERS)[number]["value"]) {
+  /** A modifier revises the current draft; "fresh" writes a new version of the post from scratch. */
+  async function handleRegenerate(modifier: (typeof MODIFIERS)[number]["value"] | "fresh") {
     if (!state) return;
     setError(null);
     setIsRegenerating(modifier);
@@ -111,10 +112,14 @@ export default function PostEditorPage() {
     const res = await fetch(`/api/posts/${params.postId}/regenerate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        modifier,
-        current: { hook: state.selectedHook, body: state.body, cta: state.cta },
-      }),
+      body: JSON.stringify(
+        modifier === "fresh"
+          ? {}
+          : {
+              modifier,
+              current: { hook: state.selectedHook, body: state.body, cta: state.cta },
+            }
+      ),
     });
     setIsRegenerating(null);
 
@@ -263,6 +268,15 @@ export default function PostEditorPage() {
             {m.label}
           </Button>
         ))}
+        <Button
+          type="button"
+          variant="secondary"
+          isLoading={isRegenerating === "fresh"}
+          disabled={isRegenerating !== null}
+          onClick={() => handleRegenerate("fresh")}
+        >
+          Write a new version
+        </Button>
         {history.length > 0 && (
           <Button
             type="button"
@@ -275,6 +289,10 @@ export default function PostEditorPage() {
           </Button>
         )}
       </div>
+      <p className="mt-2 text-xs text-ink-500">
+        The first four rework your current draft, edits included. &quot;Write a new version&quot;
+        starts over on the same topic — undo brings the previous one back.
+      </p>
 
       {error && <p className="mt-4 text-sm text-signal-bad">{error}</p>}
 

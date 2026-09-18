@@ -36,6 +36,16 @@ export function parseAIJson<T>(raw: string, schema: ZodType<T, ZodTypeDef, unkno
   }
 
   const result = schema.safeParse(parsed);
+  if (!result.success && Array.isArray(parsed)) {
+    // A reply containing two JSON objects (e.g. a draft, then a corrected
+    // version) comes back from jsonrepair as an array of both. Take the
+    // last element that fits — the model's final answer; the schema is
+    // still what decides.
+    for (let i = parsed.length - 1; i >= 0; i--) {
+      const candidate = schema.safeParse(parsed[i]);
+      if (candidate.success) return candidate.data;
+    }
+  }
   if (!result.success) {
     throw new AIProviderError(
       `AI response JSON did not match expected schema: ${result.error.message}`

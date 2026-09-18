@@ -23,6 +23,18 @@ describe("parseAIJson", () => {
     expect(result.pillars).toEqual(["QA Leadership"]);
   });
 
+  it("takes the last matching object when the reply contains two JSON objects", () => {
+    const raw = '{"pillars": ["First draft"]}\nActually, better:\n{"pillars": ["Final answer"]}';
+    const result = parseAIJson(raw, schema);
+    expect(result.pillars).toEqual(["Final answer"]);
+  });
+
+  it("skips objects that don't match the schema when picking from several", () => {
+    const raw = '{"pillars": ["The answer"]}\n{"note": "just commentary"}';
+    const result = parseAIJson(raw, schema);
+    expect(result.pillars).toEqual(["The answer"]);
+  });
+
   it("extracts JSON surrounded by stray prose with no code fence", () => {
     const raw = 'Sure, here you go:\n{"pillars": ["AI Testing"]}\nLet me know if you need more.';
     const result = parseAIJson(raw, schema);

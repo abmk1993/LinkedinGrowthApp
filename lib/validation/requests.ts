@@ -32,10 +32,13 @@ export const GeneratePostRequestSchema = z.object({
 export type GeneratePostRequest = z.infer<typeof GeneratePostRequestSchema>;
 
 export const RegeneratePostRequestSchema = z.object({
-  modifier: z.union([
-    z.enum(["shorten", "more_technical", "more_personal", "more_educational"]),
-    z.object({ changeTone: z.string().min(1) }),
-  ]),
+  // Omitted (with no `current`) = write a fresh version of the post.
+  modifier: z
+    .union([
+      z.enum(["shorten", "more_technical", "more_personal", "more_educational"]),
+      z.object({ changeTone: z.string().min(1) }),
+    ])
+    .optional(),
   // The editor's current (possibly hand-edited) text — the modifier is
   // applied to this rather than drafting a new post from scratch.
   current: z

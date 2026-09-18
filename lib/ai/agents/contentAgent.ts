@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { AIProvider } from "../provider";
 import { parseAIJson } from "../parseJson";
-import { formatHashtags } from "@/lib/posts/composePost";
+import { MAX_POST_LENGTH, composePostText, formatHashtags } from "@/lib/posts/composePost";
 
 export const GeneratedPostSchema = z.object({
   hooks: z.array(z.string().min(1)).length(3),
@@ -40,11 +40,43 @@ export interface ContentAgentInput {
   currentPost?: { hook: string; body: string; cta: string };
 }
 
-const SYSTEM_PROMPT = `You are ghostwriting a LinkedIn post for a professional. Write in first person, in their voice, as their informed take on the topic. You do not know what has actually happened in their work, so never invent personal experiences: no anecdotes, incidents, projects, numbers, percentages, durations, team sizes, or results that are not in the input. Facts about the topic itself must come from the provided context. The suggested angle is a direction, not a record of what happened — if it assumes experiences (things that 'saved us' or 'burned us'), write those parts as placeholders rather than filling them in. Where a concrete personal example would make the post stronger, insert a short bracketed placeholder telling the person what to add instead of making one up — e.g. [Add a real example: a time a flaky test hid a real bug in your suite]. Use at most 2 placeholders. The hooks are alternative opening lines; the body continues directly after whichever hook the person picks, so never repeat or paraphrase a hook at the start of the body. Hashtags are 3-6 single-word tags such as #TestAutomation, with no spaces or punctuation inside a tag. Avoid AI-sounding phrasing (no "In today's fast-paced world", no excessive emoji, no generic CTAs like "Thoughts?" unless it genuinely fits). If previous approved posts are provided, match their voice, length, and structure only — never reuse their topics, examples, stories, or claims, and never treat anything in them as a fact about this person's work. Never use a literal double-quote character inside any string value — if you need to quote or emphasize a phrase, use single quotes or an em dash instead, since a double quote inside a JSON string breaks the output. Output strict JSON only, no preamble, no markdown fence: {"hooks": [string, string, string], "body": string, "cta": string, "hashtags": string[]}.`;
+// Headroom under LinkedIn's 3,000 so the user can add their own
+// examples in place of placeholders without going over.
+const TARGET_POST_LENGTH = 2500;
 
+const SYSTEM_PROMPT = `You are ghostwriting a LinkedIn post for a professional. Write in first person, in their voice, as their informed take on the topic. You do not know what has actually happened in their work, so never invent personal experiences: no anecdotes, incidents, projects, numbers, percentages, durations, team sizes, or results that are not in the input. Facts about the topic itself must come from the provided context. The suggested angle is a direction, not a record of what happened — if it assumes experiences (things that 'saved us' or 'burned us'), write those parts as placeholders rather than filling them in. Where a concrete personal example would make the post stronger, insert a short bracketed placeholder telling the person what to add instead of making one up — e.g. [Add a real example: a time a flaky test hid a real bug in your suite]. Use at most 2 placeholders. The hooks are alternative opening lines; the body continues directly after whichever hook the person picks, so never repeat or paraphrase a hook at the start of the body. Hashtags are 3-6 single-word tags such as #TestAutomation, with no spaces or punctuation inside a tag. Length is a hard limit: the whole post — hook, body, CTA, and hashtags together — must stay under ${TARGET_POST_LENGTH} characters, and a body of 800-1,800 characters reads best in the feed. Avoid AI-sounding phrasing (no "In today's fast-paced world", no excessive emoji, no generic CTAs like "Thoughts?" unless it genuinely fits). If previous approved posts are provided, match their voice, length, and structure only — never reuse their topics, examples, stories, or claims, and never treat anything in them as a fact about this person's work. Never use a literal double-quote character inside any string value — if you need to quote or emphasize a phrase, use single quotes or an em dash instead, since a double quote inside a JSON string breaks the output. Do any reasoning silently — your reply must start with { and contain exactly one JSON object, with no commentary before or after it. Output strict JSON only, no preamble, no markdown fence: {"hooks": [string, string, string], "body": string, "cta": string, "hashtags": string[]}.`;
+
+function postLength(post: GeneratedPost): number {
+  return composePostText({ hook: post.hooks[0], ...post }).length;
+}
+
+/**
+ * Drafts (or revises) a post. The model routinely overshoots length
+ * limits stated in the prompt, so a draft over LinkedIn's limit gets one
+ * automatic shortening pass before it's returned — the editor's counter
+ * still flags anything that remains over.
+ */
 export async function generatePost(
   provider: AIProvider,
   input: ContentAgentInput
+): Promise<GeneratedPost> {
+  const draft = await draftPost(provider, input);
+  const length = postLength(draft);
+  if (length <= MAX_POST_LENGTH) return draft;
+
+  const shortened = await draftPost(provider, {
+    ...input,
+    previousApprovedPosts: undefined,
+    currentPost: { hook: draft.hooks[0] ?? "", body: draft.body, cta: draft.cta },
+    modifier: "shorten",
+    currentLength: length,
+  });
+  return postLength(shortened) < length ? shortened : draft;
+}
+
+async function draftPost(
+  provider: AIProvider,
+  input: ContentAgentInput & { currentLength?: number }
 ): Promise<GeneratedPost> {
   const lines = [
     `Profession: ${input.profession}`,
@@ -78,7 +110,10 @@ export async function generatePost(
   }
 
   if (input.modifier) {
-    lines.push("", `Regeneration instruction: ${formatModifier(input.modifier)}`);
+    const currentLength =
+      input.currentLength ??
+      (input.currentPost ? composePostText({ ...input.currentPost, hashtags: [] }).length : undefined);
+    lines.push("", `Regeneration instruction: ${formatModifier(input.modifier, currentLength)}`);
   }
 
   const raw = await provider.generate(lines.join("\n"), {
@@ -90,11 +125,13 @@ export async function generatePost(
   return parseAIJson(raw, GeneratedPostSchema);
 }
 
-function formatModifier(modifier: RegenerationModifier): string {
+function formatModifier(modifier: RegenerationModifier, currentLength?: number): string {
   if (typeof modifier === "object") return `change tone to: ${modifier.changeTone}`;
   switch (modifier) {
     case "shorten":
-      return "shorten";
+      return currentLength
+        ? `shorten — it is ${currentLength} characters now; bring the whole post well under ${TARGET_POST_LENGTH}, cutting repetition before substance`
+        : "shorten";
     case "more_technical":
       return "make more technical";
     case "more_personal":
