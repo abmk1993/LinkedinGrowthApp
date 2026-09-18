@@ -11,7 +11,18 @@ let mockSingleton: MockSearchProvider | null = null;
  */
 export function getSearchProvider(): SearchProvider {
   if (process.env.USE_MOCK_AI_PROVIDER === "true") {
-    if (!mockSingleton) mockSingleton = new MockSearchProvider();
+    if (!mockSingleton) {
+      mockSingleton = new MockSearchProvider();
+      // Every research query ends in "news <year>" — one fixed result is
+      // enough for the pipeline to reach the (also mocked) Research Agent.
+      mockSingleton.stub("news", [
+        {
+          title: "Playwright release notes",
+          url: "https://playwright.dev/docs/release-notes",
+          snippet: "Trace viewer now supports step-through DOM snapshots.",
+        },
+      ]);
+    }
     return mockSingleton;
   }
   return getSerperProvider();
